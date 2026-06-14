@@ -9,7 +9,8 @@ struct ToastmastersRolePlannerApp: App {
             MeetingTemplate.self,
             TemplateSlot.self,
             Meeting.self,
-            RoleAssignment.self
+            RoleAssignment.self,
+            RoleDefault.self
         ])
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {

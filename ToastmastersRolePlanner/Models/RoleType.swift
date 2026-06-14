@@ -9,6 +9,7 @@ import Foundation
 enum RoleType: String, Codable, CaseIterable, Identifiable {
     case sergeantAtArms
     case toastmaster
+    case warmUp
     case grammarian
     case ahCounter
     case speaker
@@ -27,6 +28,7 @@ enum RoleType: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .sergeantAtArms: "Sergeant at Arms"
         case .toastmaster: "Toastmaster"
+        case .warmUp: "Warm Up"
         case .grammarian: "Grammarian"
         case .ahCounter: "Ah-Counter"
         case .speaker: "Speaker"
@@ -45,6 +47,7 @@ enum RoleType: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .sergeantAtArms: "shield"
         case .toastmaster: "person.wave.2"
+        case .warmUp: "flame"
         case .grammarian: "textformat.abc"
         case .ahCounter: "hand.raised"
         case .speaker: "mic"
@@ -55,6 +58,26 @@ enum RoleType: String, Codable, CaseIterable, Identifiable {
         case .generalEvaluatorFunctionary: "list.clipboard"
         case .generalEvaluatorEvaluations: "star.bubble"
         case .timekeeper: "stopwatch"
+        }
+    }
+
+    /// Built-in default green / yellow / red signal times for the role.
+    /// These seed the editable `RoleDefault` store on first launch.
+    var defaultTiming: Timing {
+        switch self {
+        case .warmUp: Timing(green: 240, yellow: 300, red: 360)            // 4 / 5 / 6
+        case .sergeantAtArms: Timing(green: 60, yellow: 90, red: 120)
+        case .toastmaster: Timing(green: 60, yellow: 90, red: 120)
+        case .grammarian: Timing(green: 60, yellow: 120, red: 180)
+        case .ahCounter: Timing(green: 30, yellow: 60, red: 90)
+        case .speaker: Timing(green: 300, yellow: 360, red: 420)           // 5 / 6 / 7
+        case .speakerIntroduction: Timing(green: 30, yellow: 45, red: 60)
+        case .speakerEvaluation: Timing(green: 120, yellow: 150, red: 180) // 2 / 2:30 / 3
+        case .tableTopicsMaster: Timing(green: 60, yellow: 90, red: 120)
+        case .tableTopicsEvaluator: Timing(green: 120, yellow: 150, red: 180)
+        case .generalEvaluatorFunctionary: Timing(green: 60, yellow: 90, red: 120)
+        case .generalEvaluatorEvaluations: Timing(green: 300, yellow: 360, red: 420)
+        case .timekeeper: Timing(green: 60, yellow: 90, red: 120)
         }
     }
 
@@ -77,15 +100,19 @@ enum RoleType: String, Codable, CaseIterable, Identifiable {
     }
 
     /// Roles offered as standalone choices in the "Add Role" menu.
-    /// (Speakers are added as a block, so the sub-roles aren't listed here.)
+    /// A Speaker is added together with its Introduction (via "Add Speaker"),
+    /// but the Speaker Evaluation is added separately so it can be placed later
+    /// in the agenda, in the evaluation section.
     static var singleAddable: [RoleType] {
         [
             .sergeantAtArms,
             .toastmaster,
+            .warmUp,
             .grammarian,
             .ahCounter,
             .tableTopicsMaster,
             .tableTopicsEvaluator,
+            .speakerEvaluation,
             .generalEvaluatorFunctionary,
             .generalEvaluatorEvaluations,
             .timekeeper
@@ -109,8 +136,9 @@ enum RoleType: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    /// Sub-roles are indented under their parent speaker in lists.
+    /// The introduction is indented under its speaker in lists. The evaluation
+    /// is placed independently (later in the agenda), so it isn't indented.
     var isIndented: Bool {
-        self == .speakerIntroduction || self == .speakerEvaluation
+        self == .speakerIntroduction
     }
 }

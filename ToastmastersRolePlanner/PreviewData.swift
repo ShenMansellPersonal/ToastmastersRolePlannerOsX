@@ -11,7 +11,8 @@ enum PreviewData {
             MeetingTemplate.self,
             TemplateSlot.self,
             Meeting.self,
-            RoleAssignment.self
+            RoleAssignment.self,
+            RoleDefault.self
         ])
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         let container = try! ModelContainer(for: schema, configurations: [configuration])
@@ -25,6 +26,8 @@ enum PreviewData {
     }
 
     private static func seed(_ context: ModelContext) {
+        RoleDefault.ensureSeeded(in: context)
+
         let names = ["Alex Carter", "Bryn Davies", "Casey Wong", "Dana Patel", "Evan Ruiz", "Fiona Mak"]
         let members = names.map { Member(name: $0) }
         members.forEach { context.insert($0) }
@@ -41,15 +44,20 @@ enum PreviewData {
         add(.grammarian)
         add(.ahCounter)
         add(.timekeeper)
+        // Speech section: each speaker with its introduction.
         for speaker in 1...2 {
             add(.speaker, instance: speaker)
             add(.speakerIntroduction, instance: speaker)
-            add(.speakerEvaluation, instance: speaker)
         }
+        // Table Topics section.
         add(.tableTopicsMaster)
         add(.tableTopicsEvaluator, instance: 1)
         add(.tableTopicsEvaluator, instance: 2)
+        // Evaluation section: speaker evaluations grouped here, later in the meeting.
         add(.generalEvaluatorFunctionary)
+        for speaker in 1...2 {
+            add(.speakerEvaluation, instance: speaker)
+        }
         add(.generalEvaluatorEvaluations)
 
         let meeting = Meeting(date: Date(), theme: "Finding Your Voice")

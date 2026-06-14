@@ -5,6 +5,7 @@ struct MeetingDetailView: View {
     @Bindable var meeting: Meeting
 
     @Query(sort: \Member.name) private var allMembers: [Member]
+    @Query private var roleDefaults: [RoleDefault]
 
     private var activeMembers: [Member] {
         allMembers.filter(\.isActive)
@@ -29,7 +30,11 @@ struct MeetingDetailView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(meeting.orderedAssignments) { assignment in
-                        AssignmentRow(assignment: assignment, members: activeMembers)
+                        AssignmentRow(
+                            assignment: assignment,
+                            members: activeMembers,
+                            defaultTiming: RoleDefault.timing(for: assignment.role, in: roleDefaults)
+                        )
                     }
                 }
             } header: {
@@ -87,29 +92,73 @@ struct MeetingDetailView: View {
 private struct AssignmentRow: View {
     @Bindable var assignment: RoleAssignment
     let members: [Member]
+    let defaultTiming: Timing
+
+    @State private var showingTimes = false
+
+    private var effectiveTiming: Timing {
+        assignment.overrideTiming ?? defaultTiming
+    }
 
     var body: some View {
-        HStack {
-            Label {
-                Text(assignment.label)
-                    .foregroundStyle(assignment.role.isIndented ? .secondary : .primary)
-            } icon: {
-                Image(systemName: assignment.role.symbol)
-                    .foregroundStyle(.tint)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Label {
+                    Text(assignment.label)
+                        .foregroundStyle(assignment.role.isIndented ? .secondary : .primary)
+                } icon: {
+                    Image(systemName: assignment.role.symbol)
+                        .foregroundStyle(.tint)
+                }
+                .padding(.leading, assignment.role.isIndented ? 16 : 0)
+
+                Spacer()
+
+                Picker("", selection: $assignment.member) {
+                    Text("— Unassigned —").tag(Member?.none)
+                    ForEach(membersForPicker) { member in
+                        Text(member.name).tag(Member?.some(member))
+                    }
+                }
+                .labelsHidden()
+                .frame(maxWidth: 220)
+            }
+
+            HStack(spacing: 12) {
+                TimingSummary(timing: effectiveTiming, isCustom: assignment.hasTimingOverride)
+
+                Spacer()
+
+                Button(showingTimes ? "Done" : (assignment.hasTimingOverride ? "Edit times" : "Override times")) {
+                    if !showingTimes && !assignment.hasTimingOverride {
+                        // Seed the override from the current default so editing starts there.
+                        assignment.setOverride(defaultTiming)
+                    }
+                    showingTimes.toggle()
+                }
+                .buttonStyle(.link)
+                .font(.caption)
+
+                if assignment.hasTimingOverride {
+                    Button("Reset") {
+                        assignment.setOverride(nil)
+                        showingTimes = false
+                    }
+                    .buttonStyle(.link)
+                    .font(.caption)
+                }
             }
             .padding(.leading, assignment.role.isIndented ? 16 : 0)
 
-            Spacer()
-
-            Picker("", selection: $assignment.member) {
-                Text("— Unassigned —").tag(Member?.none)
-                ForEach(membersForPicker) { member in
-                    Text(member.name).tag(Member?.some(member))
-                }
+            if showingTimes {
+                TimingEditor(timing: Binding(
+                    get: { assignment.overrideTiming ?? defaultTiming },
+                    set: { assignment.setOverride($0) }
+                ))
+                .padding(.leading, assignment.role.isIndented ? 16 : 0)
             }
-            .labelsHidden()
-            .frame(maxWidth: 220)
         }
+        .padding(.vertical, 2)
     }
 
     /// Active members plus the currently-assigned member (in case they've gone

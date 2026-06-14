@@ -1,10 +1,12 @@
 import SwiftUI
+import SwiftData
 
 struct ContentView: View {
     enum Section: String, CaseIterable, Identifiable {
         case meetings = "Meetings"
         case templates = "Templates"
         case members = "Members"
+        case roleTimes = "Role Times"
 
         var id: String { rawValue }
 
@@ -13,10 +15,12 @@ struct ContentView: View {
             case .meetings: "calendar"
             case .templates: "list.bullet.rectangle"
             case .members: "person.2"
+            case .roleTimes: "timer"
             }
         }
     }
 
+    @Environment(\.modelContext) private var context
     @State private var selection: Section? = .meetings
 
     var body: some View {
@@ -32,8 +36,10 @@ struct ContentView: View {
             case .meetings: MeetingsView()
             case .templates: TemplatesView()
             case .members: MembersView()
+            case .roleTimes: RoleTimesView()
             }
         }
+        .onAppear { RoleDefault.ensureSeeded(in: context) }
     }
 }
 

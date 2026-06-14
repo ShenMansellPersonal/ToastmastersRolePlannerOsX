@@ -108,8 +108,9 @@ private struct TemplateEditor: View {
                     Button {
                         addSpeakerBlock()
                     } label: {
-                        Label("Add Speaker (+ Intro & Evaluation)", systemImage: "mic.badge.plus")
+                        Label("Add Speaker (+ Introduction)", systemImage: "mic.badge.plus")
                     }
+                    .help("Adds a Speaker and its Introduction. Add the matching Speaker Evaluation separately, later in the agenda.")
                 }
                 .padding(.top, 4)
             }
@@ -135,6 +136,9 @@ private struct TemplateEditor: View {
         template.slots.append(TemplateSlot(role: role, order: nextOrder, instanceNumber: instance))
     }
 
+    /// Adds a Speaker and its Introduction together. The Speaker Evaluation is
+    /// added separately (via the Add Role menu) so it can sit later in the
+    /// agenda, in the evaluation section.
     private func addSpeakerBlock() {
         let existingSpeakers = template.slots
             .filter { $0.role == .speaker }
@@ -144,8 +148,6 @@ private struct TemplateEditor: View {
         template.slots.append(TemplateSlot(role: .speaker, order: order, instanceNumber: instance))
         order += 1
         template.slots.append(TemplateSlot(role: .speakerIntroduction, order: order, instanceNumber: instance))
-        order += 1
-        template.slots.append(TemplateSlot(role: .speakerEvaluation, order: order, instanceNumber: instance))
     }
 
     private func moveSlots(from source: IndexSet, to destination: Int) {

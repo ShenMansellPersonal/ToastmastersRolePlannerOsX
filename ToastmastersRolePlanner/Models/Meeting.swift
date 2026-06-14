@@ -50,6 +50,12 @@ final class RoleAssignment {
 
     var meeting: Meeting?
 
+    /// Per-meeting timing override. When all three are set, they take precedence
+    /// over the role's default times; otherwise the role default is used.
+    var overrideGreen: Int?
+    var overrideYellow: Int?
+    var overrideRed: Int?
+
     init(role: RoleType, order: Int, instanceNumber: Int = 0, member: Member? = nil) {
         self.roleRaw = role.rawValue
         self.order = order
@@ -63,5 +69,25 @@ final class RoleAssignment {
 
     var label: String {
         role.label(instance: instanceNumber)
+    }
+
+    /// True when this meeting overrides the default timing for the role.
+    var hasTimingOverride: Bool {
+        overrideGreen != nil && overrideYellow != nil && overrideRed != nil
+    }
+
+    /// The override times, if a full override is set.
+    var overrideTiming: Timing? {
+        guard let green = overrideGreen, let yellow = overrideYellow, let red = overrideRed else {
+            return nil
+        }
+        return Timing(green: green, yellow: yellow, red: red)
+    }
+
+    /// Sets (or clears, with `nil`) the timing override.
+    func setOverride(_ timing: Timing?) {
+        overrideGreen = timing?.green
+        overrideYellow = timing?.yellow
+        overrideRed = timing?.red
     }
 }
