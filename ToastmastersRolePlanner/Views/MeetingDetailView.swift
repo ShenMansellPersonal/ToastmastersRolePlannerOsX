@@ -19,61 +19,101 @@ struct MeetingDetailView: View {
     }
 
     var body: some View {
-        Form {
-            Section("Details") {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                detailsCard
+                rolesCard
+                attendanceCard
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(20)
+        }
+        .navigationTitle(meeting.theme.isEmpty ? "Meeting" : meeting.theme)
+        .navigationSubtitle(meeting.date.formatted(date: .abbreviated, time: .omitted))
+    }
+
+    private var detailsCard: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 12) {
                 DatePicker("Date", selection: $meeting.date, displayedComponents: [.date])
                 TextField("Theme", text: $meeting.theme)
                 LabeledContent("Template", value: meeting.templateName.isEmpty ? "—" : meeting.templateName)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(6)
+        } label: {
+            Text("Details").font(.headline)
+        }
+    }
 
-            Section {
+    private var rolesCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Roles").font(.headline)
+                Spacer()
+                Text("\(filledCount)/\(meeting.assignments.count) filled")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            GroupBox {
                 if meeting.assignments.isEmpty {
                     Text("This meeting has no roles.")
                         .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(6)
                 } else {
-                    ForEach(meeting.orderedAssignments) { assignment in
-                        AssignmentRow(
-                            assignment: assignment,
-                            role: rolesByKey[assignment.roleRaw],
-                            members: activeMembers
-                        )
+                    VStack(spacing: 0) {
+                        ForEach(Array(meeting.orderedAssignments.enumerated()), id: \.element.persistentModelID) { index, assignment in
+                            AssignmentRow(
+                                assignment: assignment,
+                                role: rolesByKey[assignment.roleRaw],
+                                members: activeMembers
+                            )
+                            if index < meeting.assignments.count - 1 {
+                                Divider()
+                            }
+                        }
                     }
+                    .padding(6)
                 }
-            } header: {
-                HStack {
-                    Text("Roles")
-                    Spacer()
-                    Text("\(filledCount)/\(meeting.assignments.count) filled")
+            }
+        }
+    }
+
+    private var attendanceCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Attendance").font(.headline)
+                Spacer()
+                if !meeting.absentees.isEmpty {
+                    Text("\(meeting.absentees.count) marked absent")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
 
-            Section {
+            GroupBox {
                 if activeMembers.isEmpty {
                     Text("No active members.")
                         .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(6)
                 } else {
-                    ForEach(activeMembers) { member in
-                        AbsenteeRow(
-                            member: member,
-                            isAbsent: meeting.absentees.contains(where: { $0.persistentModelID == member.persistentModelID }),
-                            isAssigned: assignedMemberIDs.contains(member.persistentModelID),
-                            toggle: { toggleAbsent(member) }
-                        )
+                    VStack(spacing: 6) {
+                        ForEach(activeMembers) { member in
+                            AbsenteeRow(
+                                member: member,
+                                isAbsent: meeting.absentees.contains(where: { $0.persistentModelID == member.persistentModelID }),
+                                isAssigned: assignedMemberIDs.contains(member.persistentModelID),
+                                toggle: { toggleAbsent(member) }
+                            )
+                        }
                     }
-                }
-            } header: {
-                Text("Attendance — mark absent members")
-            } footer: {
-                if !meeting.absentees.isEmpty {
-                    Text("\(meeting.absentees.count) marked absent.")
+                    .padding(6)
                 }
             }
         }
-        .formStyle(.grouped)
-        .navigationTitle(meeting.theme.isEmpty ? "Meeting" : meeting.theme)
-        .navigationSubtitle(meeting.date.formatted(date: .abbreviated, time: .omitted))
     }
 
     private var filledCount: Int {
