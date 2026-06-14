@@ -1,62 +1,52 @@
 import SwiftUI
 import SwiftData
 
-struct MeetingsView: View {
+struct MeetingsListView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Meeting.date, order: .reverse) private var meetings: [Meeting]
     @Query private var templates: [MeetingTemplate]
 
-    @State private var selection: Meeting?
+    @Binding var selection: Meeting?
     @State private var showingNewMeeting = false
 
     var body: some View {
-        NavigationSplitView {
-            List(selection: $selection) {
-                ForEach(meetings) { meeting in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(meeting.date, format: .dateTime.weekday().day().month().year())
-                            .fontWeight(.medium)
-                        Text(meeting.theme.isEmpty ? meeting.templateName : meeting.theme)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    .tag(meeting)
+        List(selection: $selection) {
+            ForEach(meetings) { meeting in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(meeting.date, format: .dateTime.weekday().day().month().year())
+                        .fontWeight(.medium)
+                    Text(meeting.theme.isEmpty ? meeting.templateName : meeting.theme)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
-                .onDelete(perform: deleteMeetings)
+                .tag(meeting)
             }
-            .navigationSplitViewColumnWidth(min: 220, ideal: 260)
-            .toolbar {
-                ToolbarItem {
-                    Button {
-                        showingNewMeeting = true
-                    } label: {
-                        Label("New Meeting", systemImage: "plus")
-                    }
-                    .disabled(templates.isEmpty)
-                    .help(templates.isEmpty ? "Create a template first" : "New meeting")
-                }
-            }
-            .overlay {
-                if meetings.isEmpty {
-                    ContentUnavailableView {
-                        Label("No Meetings", systemImage: "calendar")
-                    } description: {
-                        Text(templates.isEmpty
-                             ? "Create a template first, then schedule a meeting."
-                             : "Schedule a meeting to assign roles.")
-                    }
-                }
-            }
-        } detail: {
-            if let selection {
-                MeetingDetailView(meeting: selection)
-                    .id(selection.persistentModelID)
-            } else {
-                ContentUnavailableView("Select a Meeting", systemImage: "sidebar.left")
-            }
+            .onDelete(perform: deleteMeetings)
         }
         .navigationTitle("Meetings")
+        .toolbar {
+            ToolbarItem {
+                Button {
+                    showingNewMeeting = true
+                } label: {
+                    Label("New Meeting", systemImage: "plus")
+                }
+                .disabled(templates.isEmpty)
+                .help(templates.isEmpty ? "Create a template first" : "New meeting")
+            }
+        }
+        .overlay {
+            if meetings.isEmpty {
+                ContentUnavailableView {
+                    Label("No Meetings", systemImage: "calendar")
+                } description: {
+                    Text(templates.isEmpty
+                         ? "Create a template first, then schedule a meeting."
+                         : "Schedule a meeting to assign roles.")
+                }
+            }
+        }
         .sheet(isPresented: $showingNewMeeting) {
             NewMeetingSheet { newMeeting in
                 selection = newMeeting
@@ -134,6 +124,8 @@ private struct NewMeetingSheet: View {
 }
 
 #Preview {
-    MeetingsView()
-        .modelContainer(PreviewData.container)
+    NavigationStack {
+        MeetingsListView(selection: .constant(nil))
+    }
+    .modelContainer(PreviewData.container)
 }

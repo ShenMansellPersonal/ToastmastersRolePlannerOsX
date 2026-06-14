@@ -3,47 +3,36 @@ import SwiftData
 
 /// View, add, edit, and delete the club's role catalogue. Each role carries its
 /// default green / yellow / red signal times (overridable per meeting).
-struct RolesView: View {
+struct RolesListView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Role.sortOrder) private var roles: [Role]
 
-    @State private var selection: Role?
+    @Binding var selection: Role?
 
     var body: some View {
-        NavigationSplitView {
-            List(selection: $selection) {
-                ForEach(roles) { role in
-                    Label {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(role.name.isEmpty ? "Untitled Role" : role.name)
-                            TimingSummary(timing: role.timing, isCustom: false)
-                                .labelStyle(.titleAndIcon)
-                        }
-                    } icon: {
-                        Image(systemName: role.symbol)
-                            .foregroundStyle(.tint)
+        List(selection: $selection) {
+            ForEach(roles) { role in
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(role.name.isEmpty ? "Untitled Role" : role.name)
+                        TimingSummary(timing: role.timing, isCustom: false)
                     }
-                    .tag(role)
+                } icon: {
+                    Image(systemName: role.symbol)
+                        .foregroundStyle(.tint)
                 }
-                .onDelete(perform: deleteRoles)
+                .tag(role)
             }
-            .navigationSplitViewColumnWidth(min: 240, ideal: 280)
-            .toolbar {
-                ToolbarItem {
-                    Button(action: addRole) {
-                        Label("New Role", systemImage: "plus")
-                    }
-                }
-            }
-        } detail: {
-            if let selection {
-                RoleEditor(role: selection)
-                    .id(selection.persistentModelID)
-            } else {
-                ContentUnavailableView("Select a Role", systemImage: "person.text.rectangle")
-            }
+            .onDelete(perform: deleteRoles)
         }
         .navigationTitle("Roles")
+        .toolbar {
+            ToolbarItem {
+                Button(action: addRole) {
+                    Label("New Role", systemImage: "plus")
+                }
+            }
+        }
         .onAppear { Role.ensureSeeded(in: context) }
     }
 
@@ -71,7 +60,7 @@ struct RolesView: View {
 
 // MARK: - Editor
 
-private struct RoleEditor: View {
+struct RoleEditor: View {
     @Bindable var role: Role
 
     /// A small palette of suggested SF Symbols for quick selection.
@@ -124,6 +113,8 @@ private struct RoleEditor: View {
 }
 
 #Preview {
-    RolesView()
-        .modelContainer(PreviewData.container)
+    NavigationStack {
+        RolesListView(selection: .constant(nil))
+    }
+    .modelContainer(PreviewData.container)
 }

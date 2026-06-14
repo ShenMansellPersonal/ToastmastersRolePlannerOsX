@@ -1,52 +1,42 @@
 import SwiftUI
 import SwiftData
 
-struct TemplatesView: View {
+struct TemplatesListView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \MeetingTemplate.name) private var templates: [MeetingTemplate]
 
-    @State private var selection: MeetingTemplate?
+    @Binding var selection: MeetingTemplate?
 
     var body: some View {
-        NavigationSplitView {
-            List(selection: $selection) {
-                ForEach(templates) { template in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(template.name.isEmpty ? "Untitled Template" : template.name)
-                        Text("\(template.slots.count) roles")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .tag(template)
+        List(selection: $selection) {
+            ForEach(templates) { template in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(template.name.isEmpty ? "Untitled Template" : template.name)
+                    Text("\(template.slots.count) roles")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .onDelete(perform: deleteTemplates)
+                .tag(template)
             }
-            .navigationSplitViewColumnWidth(min: 200, ideal: 240)
-            .toolbar {
-                ToolbarItem {
-                    Button(action: addTemplate) {
-                        Label("New Template", systemImage: "plus")
-                    }
-                }
-            }
-            .overlay {
-                if templates.isEmpty {
-                    ContentUnavailableView(
-                        "No Templates",
-                        systemImage: "list.bullet.rectangle",
-                        description: Text("Create a template to define the agenda for a meeting.")
-                    )
-                }
-            }
-        } detail: {
-            if let selection {
-                TemplateEditor(template: selection)
-                    .id(selection.persistentModelID)
-            } else {
-                ContentUnavailableView("Select a Template", systemImage: "sidebar.left")
-            }
+            .onDelete(perform: deleteTemplates)
         }
         .navigationTitle("Templates")
+        .toolbar {
+            ToolbarItem {
+                Button(action: addTemplate) {
+                    Label("New Template", systemImage: "plus")
+                }
+            }
+        }
+        .overlay {
+            if templates.isEmpty {
+                ContentUnavailableView(
+                    "No Templates",
+                    systemImage: "list.bullet.rectangle",
+                    description: Text("Create a template to define the agenda for a meeting.")
+                )
+            }
+        }
     }
 
     private func addTemplate() {
@@ -66,7 +56,7 @@ struct TemplatesView: View {
 
 // MARK: - Editor
 
-private struct TemplateEditor: View {
+struct TemplateEditor: View {
     @Bindable var template: MeetingTemplate
     @Query(sort: \Role.sortOrder) private var roles: [Role]
 
@@ -174,6 +164,8 @@ private struct SlotRow: View {
 }
 
 #Preview {
-    TemplatesView()
-        .modelContainer(PreviewData.container)
+    NavigationStack {
+        TemplatesListView(selection: .constant(nil))
+    }
+    .modelContainer(PreviewData.container)
 }

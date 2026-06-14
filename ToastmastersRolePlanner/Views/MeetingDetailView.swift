@@ -6,11 +6,31 @@ struct MeetingDetailView: View {
 
     @Query(sort: \Member.name) private var allMembers: [Member]
     @Query private var roles: [Role]
+    @Query private var allAssignments: [RoleAssignment]
 
     private var rolesByKey: [String: Role] { Role.lookup(roles) }
 
     private var activeMembers: [Member] {
         allMembers.filter(\.isActive)
+    }
+
+    /// For the given role, the most recent prior meeting date on which each
+    /// member performed that role. Only meetings before this one are counted,
+    /// so the value reads as "days before this meeting they last did the role".
+    private func lastPerformedDates(roleKey: String) -> [PersistentIdentifier: Date] {
+        var result: [PersistentIdentifier: Date] = [:]
+        for assignment in allAssignments {
+            guard assignment.roleRaw == roleKey,
+                  let member = assignment.member,
+                  let otherMeeting = assignment.meeting,
+                  otherMeeting.persistentModelID != meeting.persistentModelID,
+                  otherMeeting.date < meeting.date
+            else { continue }
+            let id = member.persistentModelID
+            if let existing = result[id], existing >= otherMeeting.date { continue }
+            result[id] = otherMeeting.date
+        }
+        return result
     }
 
     /// Members assigned to at least one role in this meeting.
@@ -68,7 +88,9 @@ struct MeetingDetailView: View {
                             AssignmentRow(
                                 assignment: assignment,
                                 role: rolesByKey[assignment.roleRaw],
-                                members: activeMembers
+                                members: activeMembers,
+                                lastPerformed: lastPerformedDates(roleKey: assignment.roleRaw),
+                                referenceDate: meeting.date
                             )
                             if index < meeting.assignments.count - 1 {
                                 Divider()
@@ -135,6 +157,10 @@ private struct AssignmentRow: View {
     @Bindable var assignment: RoleAssignment
     let role: Role?
     let members: [Member]
+    /// Most recent prior date each member performed this role (see MeetingDetailView).
+    let lastPerformed: [PersistentIdentifier: Date]
+    /// This meeting's date — recency is measured back from here.
+    let referenceDate: Date
 
     @State private var showingTimes = false
 
@@ -159,11 +185,11 @@ private struct AssignmentRow: View {
                 Picker("", selection: $assignment.member) {
                     Text("— Unassigned —").tag(Member?.none)
                     ForEach(membersForPicker) { member in
-                        Text(member.name).tag(Member?.some(member))
+                        Text(memberLabel(member)).tag(Member?.some(member))
                     }
                 }
                 .labelsHidden()
-                .frame(maxWidth: 220)
+                .frame(maxWidth: 240)
             }
 
             HStack(spacing: 12) {
@@ -211,6 +237,24 @@ private struct AssignmentRow: View {
             return members
         }
         return (members + [assigned]).sorted { $0.name < $1.name }
+    }
+
+    /// "Name · 14d ago" / "Name · today" / "Name · never" — recency of when this
+    /// member last performed this role, measured back from the meeting date.
+    private func memberLabel(_ member: Member) -> String {
+        let suffix: String
+        if let last = lastPerformed[member.persistentModelID] {
+            let calendar = Calendar.current
+            let days = calendar.dateComponents(
+                [.day],
+                from: calendar.startOfDay(for: last),
+                to: calendar.startOfDay(for: referenceDate)
+            ).day ?? 0
+            suffix = days <= 0 ? "today" : "\(days)d ago"
+        } else {
+            suffix = "never"
+        }
+        return "\(member.name) · \(suffix)"
     }
 }
 
