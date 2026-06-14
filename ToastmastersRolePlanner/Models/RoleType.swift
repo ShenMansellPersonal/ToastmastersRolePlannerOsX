@@ -17,9 +17,11 @@ enum RoleType: String, Codable, CaseIterable, Identifiable {
     case speakerEvaluation
     case tableTopicsMaster
     case tableTopicsEvaluator
+    case breakTime
     case generalEvaluatorFunctionary
     case generalEvaluatorEvaluations
     case timekeeper
+    case presidentsClose
 
     var id: String { rawValue }
 
@@ -36,9 +38,11 @@ enum RoleType: String, Codable, CaseIterable, Identifiable {
         case .speakerEvaluation: "Speaker Evaluation"
         case .tableTopicsMaster: "Table Topics Master"
         case .tableTopicsEvaluator: "Table Topics Evaluator"
+        case .breakTime: "Break"
         case .generalEvaluatorFunctionary: "General Evaluator – Functionary"
         case .generalEvaluatorEvaluations: "General Evaluator – Evaluations"
         case .timekeeper: "Timekeeper"
+        case .presidentsClose: "President's Close"
         }
     }
 
@@ -55,9 +59,11 @@ enum RoleType: String, Codable, CaseIterable, Identifiable {
         case .speakerEvaluation: "arrow.turn.down.right"
         case .tableTopicsMaster: "bubble.left.and.bubble.right"
         case .tableTopicsEvaluator: "checkmark.bubble"
+        case .breakTime: "cup.and.saucer"
         case .generalEvaluatorFunctionary: "list.clipboard"
         case .generalEvaluatorEvaluations: "star.bubble"
         case .timekeeper: "stopwatch"
+        case .presidentsClose: "flag.checkered"
         }
     }
 
@@ -75,9 +81,11 @@ enum RoleType: String, Codable, CaseIterable, Identifiable {
         case .speakerEvaluation: Timing(green: 120, yellow: 150, red: 180) // 2 / 2:30 / 3
         case .tableTopicsMaster: Timing(green: 60, yellow: 90, red: 120)
         case .tableTopicsEvaluator: Timing(green: 120, yellow: 150, red: 180)
+        case .breakTime: Timing(green: 600, yellow: 660, red: 720)         // 10 / 11 / 12
         case .generalEvaluatorFunctionary: Timing(green: 60, yellow: 90, red: 120)
         case .generalEvaluatorEvaluations: Timing(green: 300, yellow: 360, red: 420)
         case .timekeeper: Timing(green: 60, yellow: 90, red: 120)
+        case .presidentsClose: Timing(green: 60, yellow: 120, red: 180)
         }
     }
 
@@ -113,9 +121,11 @@ enum RoleType: String, Codable, CaseIterable, Identifiable {
             .tableTopicsMaster,
             .tableTopicsEvaluator,
             .speakerEvaluation,
+            .breakTime,
             .generalEvaluatorFunctionary,
             .generalEvaluatorEvaluations,
-            .timekeeper
+            .timekeeper,
+            .presidentsClose
         ]
     }
 

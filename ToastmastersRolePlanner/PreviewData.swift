@@ -12,6 +12,7 @@ enum PreviewData {
             TemplateSlot.self,
             Meeting.self,
             RoleAssignment.self,
+            Role.self,
             RoleDefault.self
         ])
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
@@ -26,7 +27,7 @@ enum PreviewData {
     }
 
     private static func seed(_ context: ModelContext) {
-        RoleDefault.ensureSeeded(in: context)
+        Role.ensureSeeded(in: context)
 
         let names = ["Alex Carter", "Bryn Davies", "Casey Wong", "Dana Patel", "Evan Ruiz", "Fiona Mak"]
         let members = names.map { Member(name: $0) }

@@ -33,7 +33,12 @@ final class Meeting {
     func applyTemplate(_ template: MeetingTemplate) {
         templateName = template.name
         assignments = template.orderedSlots.map { slot in
-            RoleAssignment(role: slot.role, order: slot.order, instanceNumber: slot.instanceNumber)
+            RoleAssignment(
+                roleKey: slot.roleRaw,
+                order: slot.order,
+                instanceNumber: slot.instanceNumber,
+                customLabel: slot.customLabel
+            )
         }
     }
 }
@@ -41,9 +46,13 @@ final class Meeting {
 /// A single role position within a meeting, optionally filled by a member.
 @Model
 final class RoleAssignment {
-    var roleRaw: String = RoleType.toastmaster.rawValue
+    /// Stable key of the `Role` this assignment fills (see `Role.key`).
+    var roleRaw: String = ""
     var order: Int = 0
     var instanceNumber: Int = 0
+    /// Optional override for the displayed agenda line (copied from the
+    /// template slot). When empty, the label is derived from the role.
+    var customLabel: String = ""
 
     @Relationship
     var member: Member?
@@ -56,19 +65,18 @@ final class RoleAssignment {
     var overrideYellow: Int?
     var overrideRed: Int?
 
-    init(role: RoleType, order: Int, instanceNumber: Int = 0, member: Member? = nil) {
-        self.roleRaw = role.rawValue
+    init(roleKey: String, order: Int, instanceNumber: Int = 0, customLabel: String = "", member: Member? = nil) {
+        self.roleRaw = roleKey
         self.order = order
         self.instanceNumber = instanceNumber
+        self.customLabel = customLabel
         self.member = member
     }
 
-    var role: RoleType {
-        RoleType(rawValue: roleRaw) ?? .toastmaster
-    }
-
-    var label: String {
-        role.label(instance: instanceNumber)
+    /// The label to display, given the resolved `Role` (nil if it was deleted).
+    func displayLabel(_ role: Role?) -> String {
+        if !customLabel.isEmpty { return customLabel }
+        return role?.label(instance: instanceNumber) ?? "(deleted role)"
     }
 
     /// True when this meeting overrides the default timing for the role.

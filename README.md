@@ -28,18 +28,24 @@ Add, rename, and delete club members. Each member has an **Active** checkbox —
 inactive members are kept for history but hidden from the role pickers. Toggle
 *Show inactive* to hide them from the list too.
 
+### Roles
+The catalogue of roles a meeting can use. **View, add, edit, and delete** roles
+here. Each role has a name, an icon (SF Symbol), and default **green / yellow /
+red** signal times. Two flags control behaviour: *can appear multiple times*
+(numbers the role #1, #2…) and *indent under the previous role* (for sub-roles
+such as a speaker's introduction). The built-in roles are seeded on first launch
+and can be edited or removed like any other.
+
 ### Templates
 A template is a reusable, ordered agenda — the list of roles a meeting will
-need. Build one with:
+need. **Add Role** picks any role from the catalogue; repeatable roles get the
+next number automatically. Each agenda line is an editable text field, so you
+can rename a slot (e.g. "Sergeant at Arms (welcome back)") or leave it blank to
+show the role's default name.
 
-- **Add Role** — pick any single role (Sergeant at Arms, Toastmaster,
-  Grammarian, Ah-Counter, Table Topics Master, Table Topics Evaluator,
-  General Evaluator – Functionary, General Evaluator – Evaluations, Timekeeper).
-- **Add Speaker** — adds a Speaker plus its **Introduction** and **Evaluation**
-  as a group. Add it once per speaker; each gets its own number.
-
-Roles can be reordered (drag) and deleted. Different meetings can use different
-templates, so agendas don't have to match.
+Slots can be reordered (drag) and deleted. Different meetings can use different
+templates, so agendas don't have to match. A starter template, **"3 speeches
+(default)"**, is created on first launch.
 
 ### Meetings
 Create a meeting with a **date**, optional **theme**, and a **template**. The
@@ -57,13 +63,17 @@ ToastmastersRolePlanner/
 ├── ToastmastersRolePlannerApp.swift   App entry + SwiftData container
 ├── PreviewData.swift                  Sample data for Xcode previews (DEBUG only)
 ├── Models/
-│   ├── RoleType.swift                 Enum of all agenda roles
+│   ├── Role.swift                     Role model + built-in seeding
+│   ├── RoleType.swift                 Built-in role definitions (seed data)
+│   ├── RoleTiming.swift               Timing value + legacy RoleDefault
 │   ├── Member.swift
 │   ├── MeetingTemplate.swift          MeetingTemplate + TemplateSlot
 │   └── Meeting.swift                  Meeting + RoleAssignment
 └── Views/
     ├── ContentView.swift              Sidebar navigation
     ├── MembersView.swift
+    ├── RolesView.swift                Role catalogue: view/add/edit/delete
+    ├── TimingEditor.swift             Reusable green/yellow/red editor
     ├── TemplatesView.swift            Template list + agenda editor
     ├── MeetingsView.swift             Meeting list + new-meeting sheet
     └── MeetingDetailView.swift        Role assignment + attendance

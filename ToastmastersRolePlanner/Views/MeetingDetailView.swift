@@ -5,7 +5,9 @@ struct MeetingDetailView: View {
     @Bindable var meeting: Meeting
 
     @Query(sort: \Member.name) private var allMembers: [Member]
-    @Query private var roleDefaults: [RoleDefault]
+    @Query private var roles: [Role]
+
+    private var rolesByKey: [String: Role] { Role.lookup(roles) }
 
     private var activeMembers: [Member] {
         allMembers.filter(\.isActive)
@@ -32,8 +34,8 @@ struct MeetingDetailView: View {
                     ForEach(meeting.orderedAssignments) { assignment in
                         AssignmentRow(
                             assignment: assignment,
-                            members: activeMembers,
-                            defaultTiming: RoleDefault.timing(for: assignment.role, in: roleDefaults)
+                            role: rolesByKey[assignment.roleRaw],
+                            members: activeMembers
                         )
                     }
                 }
@@ -91,26 +93,26 @@ struct MeetingDetailView: View {
 
 private struct AssignmentRow: View {
     @Bindable var assignment: RoleAssignment
+    let role: Role?
     let members: [Member]
-    let defaultTiming: Timing
 
     @State private var showingTimes = false
 
-    private var effectiveTiming: Timing {
-        assignment.overrideTiming ?? defaultTiming
-    }
+    private var isIndented: Bool { role?.isIndented ?? false }
+    private var defaultTiming: Timing { role?.timing ?? .zero }
+    private var effectiveTiming: Timing { assignment.overrideTiming ?? defaultTiming }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Label {
-                    Text(assignment.label)
-                        .foregroundStyle(assignment.role.isIndented ? .secondary : .primary)
+                    Text(assignment.displayLabel(role))
+                        .foregroundStyle(isIndented ? .secondary : .primary)
                 } icon: {
-                    Image(systemName: assignment.role.symbol)
+                    Image(systemName: role?.symbol ?? "questionmark.circle")
                         .foregroundStyle(.tint)
                 }
-                .padding(.leading, assignment.role.isIndented ? 16 : 0)
+                .padding(.leading, isIndented ? 16 : 0)
 
                 Spacer()
 
@@ -148,14 +150,14 @@ private struct AssignmentRow: View {
                     .font(.caption)
                 }
             }
-            .padding(.leading, assignment.role.isIndented ? 16 : 0)
+            .padding(.leading, isIndented ? 16 : 0)
 
             if showingTimes {
                 TimingEditor(timing: Binding(
                     get: { assignment.overrideTiming ?? defaultTiming },
                     set: { assignment.setOverride($0) }
                 ))
-                .padding(.leading, assignment.role.isIndented ? 16 : 0)
+                .padding(.leading, isIndented ? 16 : 0)
             }
         }
         .padding(.vertical, 2)

@@ -68,6 +68,9 @@ struct TemplatesView: View {
 
 private struct TemplateEditor: View {
     @Bindable var template: MeetingTemplate
+    @Query(sort: \Role.sortOrder) private var roles: [Role]
+
+    private var rolesByKey: [String: Role] { Role.lookup(roles) }
 
     var body: some View {
         Form {
@@ -84,7 +87,7 @@ private struct TemplateEditor: View {
                 } else {
                     List {
                         ForEach(template.orderedSlots) { slot in
-                            SlotRow(slot: slot)
+                            SlotRow(slot: slot, role: rolesByKey[slot.roleRaw])
                         }
                         .onMove(perform: moveSlots)
                         .onDelete(perform: deleteSlots)
@@ -94,24 +97,19 @@ private struct TemplateEditor: View {
             } header: {
                 Text("Agenda (\(template.slots.count) roles)")
             } footer: {
-                HStack {
-                    Menu {
-                        ForEach(RoleType.singleAddable) { role in
-                            Button(role.title) { addRole(role) }
+                Menu {
+                    ForEach(roles) { role in
+                        Button {
+                            addRole(role)
+                        } label: {
+                            Label(role.name, systemImage: role.symbol)
                         }
-                    } label: {
-                        Label("Add Role", systemImage: "plus")
                     }
-                    .menuStyle(.borderlessButton)
-                    .fixedSize()
-
-                    Button {
-                        addSpeakerBlock()
-                    } label: {
-                        Label("Add Speaker (+ Introduction)", systemImage: "mic.badge.plus")
-                    }
-                    .help("Adds a Speaker and its Introduction. Add the matching Speaker Evaluation separately, later in the agenda.")
+                } label: {
+                    Label("Add Role", systemImage: "plus")
                 }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
                 .padding(.top, 4)
             }
         }
@@ -125,29 +123,15 @@ private struct TemplateEditor: View {
         (template.slots.map(\.order).max() ?? -1) + 1
     }
 
-    private func addRole(_ role: RoleType) {
+    private func addRole(_ role: Role) {
         let instance: Int
         if role.allowsMultiple {
-            let existing = template.slots.filter { $0.role == role }.map(\.instanceNumber)
+            let existing = template.slots.filter { $0.roleRaw == role.key }.map(\.instanceNumber)
             instance = (existing.max() ?? 0) + 1
         } else {
             instance = 0
         }
-        template.slots.append(TemplateSlot(role: role, order: nextOrder, instanceNumber: instance))
-    }
-
-    /// Adds a Speaker and its Introduction together. The Speaker Evaluation is
-    /// added separately (via the Add Role menu) so it can sit later in the
-    /// agenda, in the evaluation section.
-    private func addSpeakerBlock() {
-        let existingSpeakers = template.slots
-            .filter { $0.role == .speaker }
-            .map(\.instanceNumber)
-        let instance = (existingSpeakers.max() ?? 0) + 1
-        var order = nextOrder
-        template.slots.append(TemplateSlot(role: .speaker, order: order, instanceNumber: instance))
-        order += 1
-        template.slots.append(TemplateSlot(role: .speakerIntroduction, order: order, instanceNumber: instance))
+        template.slots.append(TemplateSlot(roleKey: role.key, order: nextOrder, instanceNumber: instance))
     }
 
     private func moveSlots(from source: IndexSet, to destination: Int) {
@@ -171,17 +155,21 @@ private struct TemplateEditor: View {
 }
 
 private struct SlotRow: View {
-    let slot: TemplateSlot
+    @Bindable var slot: TemplateSlot
+    let role: Role?
+
+    private var isIndented: Bool { role?.isIndented ?? false }
 
     var body: some View {
-        Label {
-            Text(slot.label)
-                .foregroundStyle(slot.role.isIndented ? .secondary : .primary)
-        } icon: {
-            Image(systemName: slot.role.symbol)
+        HStack {
+            Image(systemName: role?.symbol ?? "questionmark.circle")
                 .foregroundStyle(.tint)
+                .frame(width: 18)
+            TextField(role?.label(instance: slot.instanceNumber) ?? "(deleted role)", text: $slot.customLabel)
+                .textFieldStyle(.plain)
+                .foregroundStyle(isIndented ? .secondary : .primary)
         }
-        .padding(.leading, slot.role.isIndented ? 20 : 0)
+        .padding(.leading, isIndented ? 20 : 0)
     }
 }
 

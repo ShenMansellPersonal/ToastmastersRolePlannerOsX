@@ -6,7 +6,7 @@ struct ContentView: View {
         case meetings = "Meetings"
         case templates = "Templates"
         case members = "Members"
-        case roleTimes = "Role Times"
+        case roles = "Roles"
 
         var id: String { rawValue }
 
@@ -15,7 +15,7 @@ struct ContentView: View {
             case .meetings: "calendar"
             case .templates: "list.bullet.rectangle"
             case .members: "person.2"
-            case .roleTimes: "timer"
+            case .roles: "person.text.rectangle"
             }
         }
     }
@@ -36,10 +36,13 @@ struct ContentView: View {
             case .meetings: MeetingsView()
             case .templates: TemplatesView()
             case .members: MembersView()
-            case .roleTimes: RoleTimesView()
+            case .roles: RolesView()
             }
         }
-        .onAppear { RoleDefault.ensureSeeded(in: context) }
+        .onAppear {
+            Role.ensureSeeded(in: context)
+            MeetingTemplate.ensureDefaultSeeded(in: context)
+        }
     }
 }
 
