@@ -12,40 +12,46 @@ private let tablePadding: CGFloat = 24
 // Gridline / cell border colour.
 private let gridLineColor = Color.black
 
-// MARK: - Controls (content column)
+// MARK: - Role Participation report (controls + preview)
 
-struct ReportControls: View {
-    @Environment(\.modelContext) private var context
+struct RoleParticipationReportView: View {
     @Query private var members: [Member]
     @Query private var roles: [Role]
     @Query private var meetings: [Meeting]
 
-    @Binding var start: Date
-    @Binding var end: Date
+    @State private var start = Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? Date()
+    @State private var end = Date()
 
     @State private var showingExporter = false
     @State private var pdfDocument = ReportPDFDocument(data: Data())
     @State private var errorMessage: String?
 
+    private var report: RoleReport {
+        RoleReport.build(members: members, roles: roles, meetings: meetings, start: start, end: end)
+    }
+
     var body: some View {
-        Form {
-            Section("Date range") {
+        VStack(spacing: 0) {
+            HStack(spacing: 16) {
                 DatePicker("From", selection: $start, displayedComponents: [.date])
                 DatePicker("To", selection: $end, displayedComponents: [.date])
-            }
-
-            Section {
+                Spacer()
                 Button {
                     exportPDF()
                 } label: {
                     Label("Export PDF…", systemImage: "square.and.arrow.up")
                 }
-            } footer: {
-                Text("Counts how many times each current member performed each role between the two dates.")
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .padding()
+
+            Divider()
+
+            ScrollView([.horizontal, .vertical]) {
+                ReportTable(report: report)
             }
         }
-        .formStyle(.grouped)
-        .navigationTitle("Reports")
+        .navigationTitle("Role Participation")
         .fileExporter(
             isPresented: $showingExporter,
             document: pdfDocument,
@@ -65,32 +71,8 @@ struct ReportControls: View {
 
     @MainActor
     private func exportPDF() {
-        let report = RoleReport.build(members: members, roles: roles, meetings: meetings, start: start, end: end)
-        let data = ReportPDF.render(report)
-        pdfDocument = ReportPDFDocument(data: data)
+        pdfDocument = ReportPDFDocument(data: ReportPDF.render(report))
         showingExporter = true
-    }
-}
-
-// MARK: - Preview (detail column)
-
-struct ReportPreview: View {
-    @Query private var members: [Member]
-    @Query private var roles: [Role]
-    @Query private var meetings: [Meeting]
-
-    let start: Date
-    let end: Date
-
-    private var report: RoleReport {
-        RoleReport.build(members: members, roles: roles, meetings: meetings, start: start, end: end)
-    }
-
-    var body: some View {
-        ScrollView([.horizontal, .vertical]) {
-            ReportTable(report: report)
-        }
-        .navigationTitle("Role Participation")
     }
 }
 
@@ -232,10 +214,7 @@ struct ReportPDFDocument: FileDocument {
 
 #Preview {
     NavigationStack {
-        ReportPreview(
-            start: Calendar.current.date(byAdding: .month, value: -6, to: Date()) ?? Date(),
-            end: Date()
-        )
+        RoleParticipationReportView()
     }
     .modelContainer(PreviewData.container)
 }

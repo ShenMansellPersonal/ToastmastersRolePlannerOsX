@@ -8,7 +8,6 @@ struct ContentView: View {
         case members = "Members"
         case roles = "Roles"
         case reports = "Reports"
-        case memberDetail = "Member Detail"
 
         var id: String { rawValue }
 
@@ -19,6 +18,19 @@ struct ContentView: View {
             case .members: "person.2"
             case .roles: "person.text.rectangle"
             case .reports: "chart.bar.doc.horizontal"
+            }
+        }
+    }
+
+    enum ReportKind: String, CaseIterable, Identifiable {
+        case roleParticipation = "Role Participation"
+        case memberDetail = "Member Detail"
+
+        var id: String { rawValue }
+
+        var icon: String {
+            switch self {
+            case .roleParticipation: "chart.bar.doc.horizontal"
             case .memberDetail: "person.badge.clock"
             }
         }
@@ -29,8 +41,7 @@ struct ContentView: View {
     @State private var selectedMeeting: Meeting?
     @State private var selectedTemplate: MeetingTemplate?
     @State private var selectedRole: Role?
-    @State private var reportStart = Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? Date()
-    @State private var reportEnd = Date()
+    @State private var selectedReport: ReportKind? = .roleParticipation
 
     private var section: Section { selection ?? .meetings }
 
@@ -60,8 +71,12 @@ struct ContentView: View {
         case .templates: TemplatesListView(selection: $selectedTemplate)
         case .members: MembersView()
         case .roles: RolesListView(selection: $selectedRole)
-        case .reports: ReportControls(start: $reportStart, end: $reportEnd)
-        case .memberDetail: MemberDetailControls()
+        case .reports:
+            List(ReportKind.allCases, selection: $selectedReport) { kind in
+                Label(kind.rawValue, systemImage: kind.icon)
+                    .tag(kind)
+            }
+            .navigationTitle("Reports")
         }
     }
 
@@ -95,9 +110,10 @@ struct ContentView: View {
                 description: Text("Add, rename, and manage club members in the list.")
             )
         case .reports:
-            ReportPreview(start: reportStart, end: reportEnd)
-        case .memberDetail:
-            MemberDetailPreview()
+            switch selectedReport ?? .roleParticipation {
+            case .roleParticipation: RoleParticipationReportView()
+            case .memberDetail: MemberRoleDetailReportView()
+            }
         }
     }
 }
