@@ -17,8 +17,10 @@ final class Role {
     var red: Int = 120
     /// Whether the role may appear more than once on one agenda (gets #1, #2…).
     var allowsMultiple: Bool = false
-    /// Whether the role is shown indented in lists (e.g. a speaker's intro).
-    var isIndented: Bool = false
+    /// Whether this role appears as a column in the role participation report.
+    var showInRolesReport: Bool = true
+    /// Whether this role has no person assigned to it in a meeting (e.g. Break).
+    var isUnmanned: Bool = false
     var sortOrder: Int = 0
 
     init(
@@ -27,7 +29,8 @@ final class Role {
         symbol: String,
         timing: Timing,
         allowsMultiple: Bool = false,
-        isIndented: Bool = false,
+        showInRolesReport: Bool = true,
+        isUnmanned: Bool = false,
         sortOrder: Int = 0
     ) {
         self.key = key
@@ -37,7 +40,8 @@ final class Role {
         self.yellow = timing.yellow
         self.red = timing.red
         self.allowsMultiple = allowsMultiple
-        self.isIndented = isIndented
+        self.showInRolesReport = showInRolesReport
+        self.isUnmanned = isUnmanned
         self.sortOrder = sortOrder
     }
 
@@ -74,7 +78,7 @@ extension Role {
                 symbol: type.symbol,
                 timing: timingByKey[type.rawValue] ?? type.defaultTiming,
                 allowsMultiple: type.allowsMultiple,
-                isIndented: type.isIndented,
+                isUnmanned: type.isUnmanned,
                 sortOrder: index
             ))
         }

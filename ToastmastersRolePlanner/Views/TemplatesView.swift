@@ -148,8 +148,6 @@ private struct SlotRow: View {
     @Bindable var slot: TemplateSlot
     let role: Role?
 
-    private var isIndented: Bool { role?.isIndented ?? false }
-
     var body: some View {
         HStack {
             Image(systemName: role?.symbol ?? "questionmark.circle")
@@ -157,9 +155,7 @@ private struct SlotRow: View {
                 .frame(width: 18)
             TextField(role?.label(instance: slot.instanceNumber) ?? "(deleted role)", text: $slot.customLabel)
                 .textFieldStyle(.plain)
-                .foregroundStyle(isIndented ? .secondary : .primary)
         }
-        .padding(.leading, isIndented ? 20 : 0)
     }
 }
 

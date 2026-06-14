@@ -71,7 +71,7 @@ struct MeetingDetailView: View {
             HStack {
                 Text("Roles").font(.headline)
                 Spacer()
-                Text("\(filledCount)/\(meeting.assignments.count) filled")
+                Text("\(filledCount)/\(mannedCount) filled")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -138,8 +138,15 @@ struct MeetingDetailView: View {
         }
     }
 
+    /// Assignments for roles that take a person (excludes unmanned roles).
+    private var mannedAssignments: [RoleAssignment] {
+        meeting.assignments.filter { rolesByKey[$0.roleRaw]?.isUnmanned != true }
+    }
+
+    private var mannedCount: Int { mannedAssignments.count }
+
     private var filledCount: Int {
-        meeting.assignments.filter { $0.member != nil }.count
+        mannedAssignments.filter { $0.isFilled }.count
     }
 
     private func toggleAbsent(_ member: Member) {
@@ -164,7 +171,7 @@ private struct AssignmentRow: View {
 
     @State private var showingTimes = false
 
-    private var isIndented: Bool { role?.isIndented ?? false }
+    private var isUnmanned: Bool { role?.isUnmanned ?? false }
     private var defaultTiming: Timing { role?.timing ?? .zero }
     private var effectiveTiming: Timing { assignment.overrideTiming ?? defaultTiming }
 
@@ -173,23 +180,26 @@ private struct AssignmentRow: View {
             HStack {
                 Label {
                     Text(assignment.displayLabel(role))
-                        .foregroundStyle(isIndented ? .secondary : .primary)
                 } icon: {
                     Image(systemName: role?.symbol ?? "questionmark.circle")
                         .foregroundStyle(.tint)
                 }
-                .padding(.leading, isIndented ? 16 : 0)
 
                 Spacer()
 
-                Picker("", selection: $assignment.member) {
-                    Text("— Unassigned —").tag(Member?.none)
-                    ForEach(membersForPicker) { member in
-                        Text(memberLabel(member)).tag(Member?.some(member))
+                if !isUnmanned {
+                    Menu {
+                        Button("— Unassigned —") { assignment.assign(nil) }
+                        Divider()
+                        ForEach(members) { member in
+                            Button(memberLabel(member)) { assignment.assign(member) }
+                        }
+                    } label: {
+                        Text(assigneeLabel)
+                            .foregroundStyle(assignment.isUnlinkedName ? .secondary : .primary)
                     }
+                    .frame(maxWidth: 240)
                 }
-                .labelsHidden()
-                .frame(maxWidth: 240)
             }
 
             HStack(spacing: 12) {
@@ -216,27 +226,23 @@ private struct AssignmentRow: View {
                     .font(.caption)
                 }
             }
-            .padding(.leading, isIndented ? 16 : 0)
 
             if showingTimes {
                 TimingEditor(timing: Binding(
                     get: { assignment.overrideTiming ?? defaultTiming },
                     set: { assignment.setOverride($0) }
                 ))
-                .padding(.leading, isIndented ? 16 : 0)
             }
         }
         .padding(.vertical, 2)
     }
 
-    /// Active members plus the currently-assigned member (in case they've gone
-    /// inactive but are still on this meeting).
-    private var membersForPicker: [Member] {
-        guard let assigned = assignment.member,
-              !members.contains(where: { $0.persistentModelID == assigned.persistentModelID }) else {
-            return members
-        }
-        return (members + [assigned]).sorted { $0.name < $1.name }
+    /// What the menu button shows: the linked member, an unlinked text name
+    /// flagged "not in list", or unassigned.
+    private var assigneeLabel: String {
+        if let member = assignment.member { return member.name }
+        if assignment.isUnlinkedName { return "\(assignment.memberName) · not in list" }
+        return "— Unassigned —"
     }
 
     /// "Name · 14d ago" / "Name · today" / "Name · never" — recency of when this

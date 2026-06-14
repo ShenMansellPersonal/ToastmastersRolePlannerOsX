@@ -54,8 +54,13 @@ final class RoleAssignment {
     /// template slot). When empty, the label is derived from the role.
     var customLabel: String = ""
 
+    /// The assigned current member, if any.
     @Relationship
     var member: Member?
+    /// The assignee's name as text. Mirrors `member.name` when linked, but is
+    /// also kept for people who aren't (or are no longer) in the member list —
+    /// so historic data survives. Empty means unassigned.
+    var memberName: String = ""
 
     var meeting: Meeting?
 
@@ -65,12 +70,33 @@ final class RoleAssignment {
     var overrideYellow: Int?
     var overrideRed: Int?
 
-    init(roleKey: String, order: Int, instanceNumber: Int = 0, customLabel: String = "", member: Member? = nil) {
+    init(roleKey: String, order: Int, instanceNumber: Int = 0, customLabel: String = "", member: Member? = nil, memberName: String = "") {
         self.roleRaw = roleKey
         self.order = order
         self.instanceNumber = instanceNumber
         self.customLabel = customLabel
         self.member = member
+        self.memberName = member?.name ?? memberName
+    }
+
+    /// The display name of whoever holds this role: the linked member's name,
+    /// else the stored text name, else nil (unassigned).
+    var assigneeName: String? {
+        if let member { return member.name }
+        return memberName.isEmpty ? nil : memberName
+    }
+
+    /// True when someone (linked or text-only) is assigned.
+    var isFilled: Bool { assigneeName != nil }
+
+    /// True when a name is recorded but it isn't a current member.
+    var isUnlinkedName: Bool { member == nil && !memberName.isEmpty }
+
+    /// Assigns a current member (keeping the text name in sync), or clears
+    /// the assignment entirely when passed nil.
+    func assign(_ newMember: Member?) {
+        member = newMember
+        memberName = newMember?.name ?? ""
     }
 
     /// The label to display, given the resolved `Role` (nil if it was deleted).

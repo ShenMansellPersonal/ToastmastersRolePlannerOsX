@@ -3,16 +3,30 @@ import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// CSV import/export for members. Columns: Name, Active, Notes.
+/// CSV import/export for members. Columns: Name, Active, Notes, Joined.
 enum MemberCSV {
-    static let header = "Name,Active,Notes"
+    static let header = "Name,Active,Notes,Joined"
+
+    private static let exportDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    private static let importDateFormats = ["yyyy-MM-dd", "dd/MM/yyyy", "d/M/yyyy", "d/M/yy"]
 
     // MARK: Export
 
     static func export(_ members: [Member]) -> String {
         var lines = [header]
         for member in members.sorted(by: { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }) {
-            let fields = [member.name, member.isActive ? "Yes" : "No", member.notes]
+            let fields = [
+                member.name,
+                member.isActive ? "Yes" : "No",
+                member.notes,
+                exportDateFormatter.string(from: member.joinedDate)
+            ]
             lines.append(fields.map(escape).joined(separator: ","))
         }
         return lines.joined(separator: "\n") + "\n"
@@ -44,13 +58,20 @@ enum MemberCSV {
             if name.isEmpty { continue }
             let active = row.count > 1 ? parseBool(row[1]) : true
             let notes = row.count > 2 ? row[2] : ""
+            let joined = row.count > 3 ? parseDate(row[3]) : nil
 
             if let member = byName[name.lowercased()] {
                 member.isActive = active
                 member.notes = notes
+                if let joined { member.joinedDate = joined }  // keep existing if absent
                 updated += 1
             } else {
-                let member = Member(name: name, isActive: active, notes: notes)
+                let member = Member(
+                    name: name,
+                    isActive: active,
+                    notes: notes,
+                    joinedDate: joined ?? Member.defaultJoinedDate
+                )
                 context.insert(member)
                 byName[name.lowercased()] = member
                 inserted += 1
@@ -62,6 +83,18 @@ enum MemberCSV {
     private static func parseBool(_ string: String) -> Bool {
         let value = string.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return ["yes", "y", "true", "1", "active", "x"].contains(value)
+    }
+
+    private static func parseDate(_ string: String) -> Date? {
+        let value = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.isEmpty { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        for format in importDateFormats {
+            formatter.dateFormat = format
+            if let date = formatter.date(from: value) { return date }
+        }
+        return nil
     }
 
     private static func escape(_ field: String) -> String {

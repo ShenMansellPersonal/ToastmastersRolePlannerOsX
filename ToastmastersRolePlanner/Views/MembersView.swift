@@ -151,6 +151,11 @@ private struct MemberRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+            DatePicker("Joined", selection: $member.joinedDate, displayedComponents: [.date])
+                .labelsHidden()
+                .controlSize(.small)
+                .help("Date joined the club")
         }
     }
 }

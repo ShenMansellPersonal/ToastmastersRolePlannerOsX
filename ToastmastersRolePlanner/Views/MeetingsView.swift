@@ -1,13 +1,21 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 struct MeetingsListView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Meeting.date, order: .reverse) private var meetings: [Meeting]
     @Query private var templates: [MeetingTemplate]
+    @Query private var members: [Member]
+    @Query private var roles: [Role]
 
     @Binding var selection: Meeting?
     @State private var showingNewMeeting = false
+
+    @State private var showingExporter = false
+    @State private var showingImporter = false
+    @State private var exportDocument = MeetingsJSONDocument(data: Data())
+    @State private var resultMessage: String?
 
     var body: some View {
         List(selection: $selection) {
@@ -26,6 +34,24 @@ struct MeetingsListView: View {
         }
         .navigationTitle("Meetings")
         .toolbar {
+            ToolbarItem {
+                Menu {
+                    Button {
+                        startExport()
+                    } label: {
+                        Label("Export to JSON…", systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(meetings.isEmpty)
+
+                    Button {
+                        showingImporter = true
+                    } label: {
+                        Label("Import from JSON…", systemImage: "square.and.arrow.down")
+                    }
+                } label: {
+                    Label("Import / Export", systemImage: "arrow.up.arrow.down")
+                }
+            }
             ToolbarItem {
                 Button {
                     showingNewMeeting = true
@@ -51,6 +77,54 @@ struct MeetingsListView: View {
             NewMeetingSheet { newMeeting in
                 selection = newMeeting
             }
+        }
+        .fileExporter(
+            isPresented: $showingExporter,
+            document: exportDocument,
+            contentType: .json,
+            defaultFilename: "Meetings"
+        ) { result in
+            if case .failure(let error) = result {
+                resultMessage = "Export failed: \(error.localizedDescription)"
+            }
+        }
+        .fileImporter(
+            isPresented: $showingImporter,
+            allowedContentTypes: [.json]
+        ) { result in
+            handleImport(result)
+        }
+        .alert("Meetings", isPresented: Binding(get: { resultMessage != nil }, set: { if !$0 { resultMessage = nil } })) {
+            Button("OK", role: .cancel) { resultMessage = nil }
+        } message: {
+            Text(resultMessage ?? "")
+        }
+    }
+
+    private func startExport() {
+        do {
+            let data = try MeetingIO.export(meetings, rolesByKey: Role.lookup(roles))
+            exportDocument = MeetingsJSONDocument(data: data)
+            showingExporter = true
+        } catch {
+            resultMessage = "Export failed: \(error.localizedDescription)"
+        }
+    }
+
+    private func handleImport(_ result: Result<URL, Error>) {
+        switch result {
+        case .success(let url):
+            let needsScope = url.startAccessingSecurityScopedResource()
+            defer { if needsScope { url.stopAccessingSecurityScopedResource() } }
+            do {
+                let data = try Data(contentsOf: url)
+                let count = try MeetingIO.importing(data, into: context, members: members)
+                resultMessage = "Imported \(count) meeting\(count == 1 ? "" : "s")."
+            } catch {
+                resultMessage = "Import failed: \(error.localizedDescription)"
+            }
+        case .failure(let error):
+            resultMessage = "Import failed: \(error.localizedDescription)"
         }
     }
 

@@ -9,12 +9,20 @@ final class Member {
     /// for history but hidden from the assignment pickers.
     var isActive: Bool = true
     var notes: String = ""
+    /// When the record was created in the app.
     var dateAdded: Date = Date()
+    /// When the member joined the club. Defaults to 1 Jan 2025 for records that
+    /// predate this field (and for imports without a joined date).
+    var joinedDate: Date = Member.defaultJoinedDate
 
-    init(name: String, isActive: Bool = true, notes: String = "") {
+    init(name: String, isActive: Bool = true, notes: String = "", joinedDate: Date = Date()) {
         self.name = name
         self.isActive = isActive
         self.notes = notes
         self.dateAdded = Date()
+        self.joinedDate = joinedDate
     }
+
+    /// 2025-01-01 (UTC midnight) — the fallback joined date.
+    static let defaultJoinedDate = Date(timeIntervalSince1970: 1_735_689_600)
 }

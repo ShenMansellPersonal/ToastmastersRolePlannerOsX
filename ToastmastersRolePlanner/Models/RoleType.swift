@@ -97,9 +97,12 @@ enum RoleType: String, CaseIterable {
         }
     }
 
-    /// Whether the role is shown indented in lists (a speaker's introduction).
-    /// Seeds `Role.isIndented`.
-    var isIndented: Bool {
-        self == .speakerIntroduction
+    /// Roles that have no person assigned to them in a meeting. Seeds
+    /// `Role.isUnmanned`.
+    var isUnmanned: Bool {
+        switch self {
+        case .warmUp, .breakTime, .presidentsClose: true
+        default: false
+        }
     }
 }

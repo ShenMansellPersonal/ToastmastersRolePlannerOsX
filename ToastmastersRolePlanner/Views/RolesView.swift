@@ -95,9 +95,10 @@ struct RoleEditor: View {
 
             Section {
                 Toggle("Can appear multiple times per meeting", isOn: $role.allowsMultiple)
-                Toggle("Indent under the previous role", isOn: $role.isIndented)
+                Toggle("Unmanned role (no person assigned)", isOn: $role.isUnmanned)
+                Toggle("Show in roles report", isOn: $role.showInRolesReport)
             } footer: {
-                Text("“Multiple” numbers the role as #1, #2… on an agenda. “Indent” is for sub-roles such as a speaker's introduction.")
+                Text("“Multiple” numbers the role as #1, #2… on an agenda. “Unmanned” roles (e.g. Break) appear on the agenda without a member assigned.")
             }
 
             Section("Default times") {

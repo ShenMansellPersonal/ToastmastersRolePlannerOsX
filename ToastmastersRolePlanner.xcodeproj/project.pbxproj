@@ -6,16 +6,35 @@
 	objectVersion = 70;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		AB0000000000000000000000B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA0000000000000000000000A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA00000000000000000000006;
+			remoteInfo = ToastmastersRolePlanner;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		AA00000000000000000000005 /* ToastmastersRolePlanner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ToastmastersRolePlanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AB00000000000000000000002 /* ToastmastersRolePlannerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ToastmastersRolePlannerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		AA00000000000000000000002 /* ToastmastersRolePlanner */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ToastmastersRolePlanner; sourceTree = "<group>"; };
+		AB00000000000000000000001 /* ToastmastersRolePlannerTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ToastmastersRolePlannerTests; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		AA00000000000000000000003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AB00000000000000000000005 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -29,6 +48,7 @@
 			isa = PBXGroup;
 			children = (
 				AA00000000000000000000002 /* ToastmastersRolePlanner */,
+				AB00000000000000000000001 /* ToastmastersRolePlannerTests */,
 				AA00000000000000000000004 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -37,6 +57,7 @@
 			isa = PBXGroup;
 			children = (
 				AA00000000000000000000005 /* ToastmastersRolePlanner.app */,
+				AB00000000000000000000002 /* ToastmastersRolePlannerTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -64,6 +85,27 @@
 			productReference = AA00000000000000000000005 /* ToastmastersRolePlanner.app */;
 			productType = "com.apple.product-type.application";
 		};
+		AB00000000000000000000003 /* ToastmastersRolePlannerTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AB00000000000000000000007 /* Build configuration list for PBXNativeTarget "ToastmastersRolePlannerTests" */;
+			buildPhases = (
+				AB00000000000000000000004 /* Sources */,
+				AB00000000000000000000005 /* Frameworks */,
+				AB00000000000000000000006 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AB0000000000000000000000A /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				AB00000000000000000000001 /* ToastmastersRolePlannerTests */,
+			);
+			name = ToastmastersRolePlannerTests;
+			productName = ToastmastersRolePlannerTests;
+			productReference = AB00000000000000000000002 /* ToastmastersRolePlannerTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -76,6 +118,10 @@
 				TargetAttributes = {
 					AA00000000000000000000006 = {
 						CreatedOnToolsVersion = 16.0;
+					};
+					AB00000000000000000000003 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = AA00000000000000000000006;
 					};
 				};
 			};
@@ -94,12 +140,20 @@
 			projectRoot = "";
 			targets = (
 				AA00000000000000000000006 /* ToastmastersRolePlanner */,
+				AB00000000000000000000003 /* ToastmastersRolePlannerTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		AA00000000000000000000009 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AB00000000000000000000006 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -116,7 +170,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AB00000000000000000000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AB0000000000000000000000A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA00000000000000000000006 /* ToastmastersRolePlanner */;
+			targetProxy = AB0000000000000000000000B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		AA0000000000000000000000C /* Debug */ = {
@@ -289,6 +358,36 @@
 			};
 			name = Release;
 		};
+		AB00000000000000000000008 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = nz.co.ilr.ToastmastersRolePlannerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ToastmastersRolePlanner.app/Contents/MacOS/ToastmastersRolePlanner";
+			};
+			name = Debug;
+		};
+		AB00000000000000000000009 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = nz.co.ilr.ToastmastersRolePlannerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ToastmastersRolePlanner.app/Contents/MacOS/ToastmastersRolePlanner";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -306,6 +405,15 @@
 			buildConfigurations = (
 				AA0000000000000000000000C /* Debug */,
 				AA0000000000000000000000D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AB00000000000000000000007 /* Build configuration list for PBXNativeTarget "ToastmastersRolePlannerTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AB00000000000000000000008 /* Debug */,
+				AB00000000000000000000009 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

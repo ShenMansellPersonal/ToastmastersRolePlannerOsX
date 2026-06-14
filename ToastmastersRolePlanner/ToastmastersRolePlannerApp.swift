@@ -3,7 +3,13 @@ import SwiftData
 
 @main
 struct ToastmastersRolePlannerApp: App {
-    let sharedModelContainer: ModelContainer = {
+    /// True when the process is hosting unit tests. In that case the app must
+    /// not create its own `ModelContainer`, so it doesn't collide with the
+    /// in-memory container each test creates.
+    private static let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+
+    /// Created lazily on first access, so it's never built during tests.
+    static let sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Member.self,
             MeetingTemplate.self,
@@ -31,10 +37,14 @@ struct ToastmastersRolePlannerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .frame(minWidth: 820, minHeight: 520)
+            if Self.isRunningTests {
+                EmptyView()
+            } else {
+                ContentView()
+                    .frame(minWidth: 820, minHeight: 520)
+                    .modelContainer(Self.sharedModelContainer)
+            }
         }
-        .modelContainer(sharedModelContainer)
         .commands {
             SidebarCommands()
         }
