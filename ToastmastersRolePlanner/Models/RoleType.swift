@@ -1,12 +1,11 @@
 import Foundation
 
-/// The full set of roles that can appear on a Toastmasters meeting agenda.
+/// The built-in roles used to seed the `Role` catalogue on first launch.
 ///
-/// A "Speaker" is special: each speaker on the agenda also needs an
-/// Introduction and an Evaluation. Those are modelled as their own role
-/// values (`speakerIntroduction` / `speakerEvaluation`) and grouped to a
-/// speaker via `TemplateSlot.instanceNumber` / `RoleAssignment.instanceNumber`.
-enum RoleType: String, Codable, CaseIterable, Identifiable {
+/// At runtime the app reads the editable `Role` table — this enum is only the
+/// bootstrap definition. Each case's `rawValue` becomes the seeded `Role.key`,
+/// so templates and meetings created before roles became editable still resolve.
+enum RoleType: String, CaseIterable {
     case sergeantAtArms
     case toastmaster
     case warmUp
@@ -22,8 +21,6 @@ enum RoleType: String, Codable, CaseIterable, Identifiable {
     case generalEvaluatorEvaluations
     case timekeeper
     case presidentsClose
-
-    var id: String { rawValue }
 
     /// Human-readable name for the role.
     var title: String {
@@ -68,7 +65,7 @@ enum RoleType: String, Codable, CaseIterable, Identifiable {
     }
 
     /// Built-in default green / yellow / red signal times for the role.
-    /// These seed the editable `RoleDefault` store on first launch.
+    /// These seed the editable `Role` catalogue on first launch.
     var defaultTiming: Timing {
         switch self {
         case .warmUp: Timing(green: 240, yellow: 300, red: 360)            // 4 / 5 / 6
@@ -90,6 +87,7 @@ enum RoleType: String, Codable, CaseIterable, Identifiable {
     }
 
     /// Roles that may legitimately appear more than once on one agenda.
+    /// Seeds `Role.allowsMultiple`.
     var allowsMultiple: Bool {
         switch self {
         case .speaker, .speakerIntroduction, .speakerEvaluation, .tableTopicsEvaluator:
@@ -99,55 +97,8 @@ enum RoleType: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    /// Roles that are part of a speaker block (and therefore added together).
-    var isSpeakerBlock: Bool {
-        switch self {
-        case .speaker, .speakerIntroduction, .speakerEvaluation: true
-        default: false
-        }
-    }
-
-    /// Roles offered as standalone choices in the "Add Role" menu.
-    /// A Speaker is added together with its Introduction (via "Add Speaker"),
-    /// but the Speaker Evaluation is added separately so it can be placed later
-    /// in the agenda, in the evaluation section.
-    static var singleAddable: [RoleType] {
-        [
-            .sergeantAtArms,
-            .toastmaster,
-            .warmUp,
-            .grammarian,
-            .ahCounter,
-            .tableTopicsMaster,
-            .tableTopicsEvaluator,
-            .speakerEvaluation,
-            .breakTime,
-            .generalEvaluatorFunctionary,
-            .generalEvaluatorEvaluations,
-            .timekeeper,
-            .presidentsClose
-        ]
-    }
-
-    /// A display label for a role given the instance it belongs to.
-    /// `instance` is 0 for non-repeating roles.
-    func label(instance: Int) -> String {
-        switch self {
-        case .speaker:
-            return instance > 0 ? "Speaker #\(instance)" : "Speaker"
-        case .speakerIntroduction:
-            return instance > 0 ? "Introduction — Speaker #\(instance)" : "Speaker Introduction"
-        case .speakerEvaluation:
-            return instance > 0 ? "Evaluation — Speaker #\(instance)" : "Speaker Evaluation"
-        case .tableTopicsEvaluator:
-            return instance > 0 ? "Table Topics Evaluator #\(instance)" : title
-        default:
-            return title
-        }
-    }
-
-    /// The introduction is indented under its speaker in lists. The evaluation
-    /// is placed independently (later in the agenda), so it isn't indented.
+    /// Whether the role is shown indented in lists (a speaker's introduction).
+    /// Seeds `Role.isIndented`.
     var isIndented: Bool {
         self == .speakerIntroduction
     }
