@@ -24,6 +24,7 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		AA00000000000000000000002 /* ToastmastersRolePlanner */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ToastmastersRolePlanner; sourceTree = "<group>"; };
 		AB00000000000000000000001 /* ToastmastersRolePlannerTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ToastmastersRolePlannerTests; sourceTree = "<group>"; };
+		AC00000000000000000000001 /* ToastmastersCore */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ToastmastersCore; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -48,6 +49,7 @@
 			isa = PBXGroup;
 			children = (
 				AA00000000000000000000002 /* ToastmastersRolePlanner */,
+				AC00000000000000000000001 /* ToastmastersCore */,
 				AB00000000000000000000001 /* ToastmastersRolePlannerTests */,
 				AA00000000000000000000004 /* Products */,
 			);
@@ -79,6 +81,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				AA00000000000000000000002 /* ToastmastersRolePlanner */,
+				AC00000000000000000000001 /* ToastmastersCore */,
 			);
 			name = ToastmastersRolePlanner;
 			productName = ToastmastersRolePlanner;
@@ -100,6 +103,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				AB00000000000000000000001 /* ToastmastersRolePlannerTests */,
+				AC00000000000000000000001 /* ToastmastersCore */,
 			);
 			name = ToastmastersRolePlannerTests;
 			productName = ToastmastersRolePlannerTests;
@@ -361,7 +365,6 @@
 		AB00000000000000000000008 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
@@ -369,14 +372,12 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ToastmastersRolePlanner.app/Contents/MacOS/ToastmastersRolePlanner";
 			};
 			name = Debug;
 		};
 		AB00000000000000000000009 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
@@ -384,7 +385,6 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ToastmastersRolePlanner.app/Contents/MacOS/ToastmastersRolePlanner";
 			};
 			name = Release;
 		};

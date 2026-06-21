@@ -38,10 +38,128 @@ struct MeetingDetailView: View {
         Set(meeting.assignments.compactMap { $0.member?.persistentModelID })
     }
 
+    /// Members linked to more than one role in this meeting.
+    private var duplicateMemberIDs: Set<PersistentIdentifier> {
+        var counts: [PersistentIdentifier: Int] = [:]
+        for assignment in meeting.assignments {
+            if let id = assignment.member?.persistentModelID {
+                counts[id, default: 0] += 1
+            }
+        }
+        return Set(counts.filter { $0.value > 1 }.keys)
+    }
+
+    private func label(for assignment: RoleAssignment) -> String {
+        assignment.displayLabel(rolesByKey[assignment.roleRaw])
+    }
+
+    /// Problems worth flagging on this meeting: a member in two roles, or a
+    /// member who's both assigned a role and marked absent.
+    private var warnings: [String] {
+        var result: [String] = []
+
+        // Same member in multiple manned roles.
+        var rolesByMember: [PersistentIdentifier: (name: String, labels: [String])] = [:]
+        for assignment in meeting.orderedAssignments {
+            guard let member = assignment.member, rolesByKey[assignment.roleRaw]?.isUnmanned != true else { continue }
+            rolesByMember[member.persistentModelID, default: (member.name, [])].labels.append(label(for: assignment))
+        }
+        for info in rolesByMember.values where info.labels.count > 1 {
+            result.append("\(info.name) is assigned to \(info.labels.count) roles: \(info.labels.joined(separator: ", ")).")
+        }
+        result.sort()
+
+        // Assigned but marked absent.
+        let absentIDs = Set(meeting.absentees.map(\.persistentModelID))
+        for assignment in meeting.orderedAssignments {
+            guard let member = assignment.member, absentIDs.contains(member.persistentModelID) else { continue }
+            result.append("\(member.name) is marked absent but assigned \(label(for: assignment)).")
+        }
+
+        return result
+    }
+
+    // MARK: Auto-fill
+
+    /// Prior-meeting recency: per member, the last date they did each role and
+    /// the last date they did any role. Only meetings before this one count.
+    private func priorRecency() -> (perRole: [PersistentIdentifier: [String: Date]], overall: [PersistentIdentifier: Date]) {
+        var perRole: [PersistentIdentifier: [String: Date]] = [:]
+        var overall: [PersistentIdentifier: Date] = [:]
+        for assignment in allAssignments {
+            guard let member = assignment.member,
+                  let otherMeeting = assignment.meeting,
+                  otherMeeting.persistentModelID != meeting.persistentModelID,
+                  otherMeeting.date < meeting.date
+            else { continue }
+            let id = member.persistentModelID
+            let date = otherMeeting.date
+            if (perRole[id]?[assignment.roleRaw]).map({ date > $0 }) ?? true {
+                perRole[id, default: [:]][assignment.roleRaw] = date
+            }
+            if (overall[id]).map({ date > $0 }) ?? true {
+                overall[id] = date
+            }
+        }
+        return (perRole, overall)
+    }
+
+    /// Empty, manned role slots that still need someone.
+    private var fillableAssignments: [RoleAssignment] {
+        meeting.orderedAssignments.filter {
+            rolesByKey[$0.roleRaw]?.isUnmanned != true && !$0.isFilled
+        }
+    }
+
+    /// Fills empty roles, prioritising members who've gone longest without any
+    /// role. Never overwrites a set role, never assigns anyone twice, skips
+    /// absentees, and places the most-overdue member into the role they're most
+    /// overdue for.
+    private func autoFill() {
+        var remaining = fillableAssignments
+        guard !remaining.isEmpty else { return }
+
+        let absentIDs = Set(meeting.absentees.map(\.persistentModelID))
+        let (perRole, overall) = priorRecency()
+
+        // Available = active, not absent, not already assigned to any role here.
+        var available = activeMembers.filter {
+            !absentIDs.contains($0.persistentModelID) && !assignedMemberIDs.contains($0.persistentModelID)
+        }
+        // Longest since doing any role first (never → first).
+        available.sort { lhs, rhs in
+            olderFirst(overall[lhs.persistentModelID], overall[rhs.persistentModelID], tieBreak: lhs.name < rhs.name)
+        }
+
+        for member in available {
+            guard !remaining.isEmpty else { break }
+            let memberRoleDates = perRole[member.persistentModelID] ?? [:]
+            // Pick the empty role this member is most overdue for.
+            guard let chosen = remaining.min(by: { lhs, rhs in
+                olderFirst(memberRoleDates[lhs.roleRaw], memberRoleDates[rhs.roleRaw], tieBreak: lhs.order < rhs.order)
+            }) else { break }
+            chosen.assign(member)
+            remaining.removeAll { $0 === chosen }
+        }
+    }
+
+    /// True when `a` represents a longer gap than `b` (nil = "never" = longest).
+    private func olderFirst(_ a: Date?, _ b: Date?, tieBreak: @autoclosure () -> Bool) -> Bool {
+        switch (a, b) {
+        case (nil, nil): return tieBreak()
+        case (nil, _): return true
+        case (_, nil): return false
+        case let (x?, y?): return x != y ? x < y : tieBreak()
+        }
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 detailsCard
+                if !warnings.isEmpty {
+                    warningsCard
+                }
                 rolesCard
                 attendanceCard
             }
@@ -66,6 +184,23 @@ struct MeetingDetailView: View {
         }
     }
 
+    private var warningsCard: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(warnings, id: \.self) { warning in
+                    Label(warning, systemImage: "exclamationmark.triangle.fill")
+                        .font(.callout)
+                        .foregroundStyle(.orange)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(6)
+        } label: {
+            Label("Check these", systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.orange)
+        }
+    }
+
     private var rolesCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -74,6 +209,14 @@ struct MeetingDetailView: View {
                 Text("\(filledCount)/\(mannedCount) filled")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Button {
+                    autoFill()
+                } label: {
+                    Label("Auto-fill", systemImage: "wand.and.stars")
+                }
+                .controlSize(.small)
+                .disabled(fillableAssignments.isEmpty)
+                .help("Fill empty roles, favouring members who haven't had a role for the longest")
             }
 
             GroupBox {
@@ -90,7 +233,8 @@ struct MeetingDetailView: View {
                                 role: rolesByKey[assignment.roleRaw],
                                 members: activeMembers,
                                 lastPerformed: lastPerformedDates(roleKey: assignment.roleRaw),
-                                referenceDate: meeting.date
+                                referenceDate: meeting.date,
+                                duplicateMemberIDs: duplicateMemberIDs
                             )
                             if index < meeting.assignments.count - 1 {
                                 Divider()
@@ -168,12 +312,31 @@ private struct AssignmentRow: View {
     let lastPerformed: [PersistentIdentifier: Date]
     /// This meeting's date — recency is measured back from here.
     let referenceDate: Date
+    /// Members linked to more than one role in this meeting (flagged as clashes).
+    let duplicateMemberIDs: Set<PersistentIdentifier>
 
     @State private var showingTimes = false
 
     private var isUnmanned: Bool { role?.isUnmanned ?? false }
     private var defaultTiming: Timing { role?.timing ?? .zero }
     private var effectiveTiming: Timing { assignment.overrideTiming ?? defaultTiming }
+    private var isDuplicate: Bool {
+        guard let id = assignment.member?.persistentModelID else { return false }
+        return duplicateMemberIDs.contains(id)
+    }
+
+    /// Members ordered by how long since they last did this role: never first,
+    /// then longest-ago to most-recent.
+    private var sortedMembers: [Member] {
+        members.sorted { lhs, rhs in
+            switch (lastPerformed[lhs.persistentModelID], lastPerformed[rhs.persistentModelID]) {
+            case (nil, nil): return lhs.name < rhs.name
+            case (nil, _): return true
+            case (_, nil): return false
+            case let (a?, b?): return a != b ? a < b : lhs.name < rhs.name
+            }
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -188,15 +351,20 @@ private struct AssignmentRow: View {
                 Spacer()
 
                 if !isUnmanned {
+                    if isDuplicate {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                            .help("This member is assigned to more than one role")
+                    }
                     Menu {
                         Button("— Unassigned —") { assignment.assign(nil) }
                         Divider()
-                        ForEach(members) { member in
+                        ForEach(sortedMembers) { member in
                             Button(memberLabel(member)) { assignment.assign(member) }
                         }
                     } label: {
                         Text(assigneeLabel)
-                            .foregroundStyle(assignment.isUnlinkedName ? .secondary : .primary)
+                            .foregroundStyle(isDuplicate ? .orange : (assignment.isUnlinkedName ? .secondary : .primary))
                     }
                     .frame(maxWidth: 240)
                 }

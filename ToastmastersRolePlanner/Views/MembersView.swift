@@ -51,27 +51,12 @@ struct MembersView: View {
             }
         }
         .navigationTitle("Members")
-        .toolbar {
-            ToolbarItem {
-                Menu {
-                    Button {
-                        exportDocument = MembersCSVDocument(text: MemberCSV.export(members))
-                        showingExporter = true
-                    } label: {
-                        Label("Export to CSV…", systemImage: "square.and.arrow.up")
-                    }
-                    .disabled(members.isEmpty)
-
-                    Button {
-                        showingImporter = true
-                    } label: {
-                        Label("Import from CSV…", systemImage: "square.and.arrow.down")
-                    }
-                } label: {
-                    Label("Import / Export", systemImage: "arrow.up.arrow.down")
-                }
-            }
-        }
+        .focusedSceneValue(\.importExport, ImportExportActions(
+            exportTitle: "Export Members to CSV…",
+            importTitle: "Import Members from CSV…",
+            exportAction: { startExport() },
+            importAction: { showingImporter = true }
+        ))
         .fileExporter(
             isPresented: $showingExporter,
             document: exportDocument,
@@ -93,6 +78,11 @@ struct MembersView: View {
         } message: {
             Text(resultMessage ?? "")
         }
+    }
+
+    private func startExport() {
+        exportDocument = MembersCSVDocument(text: MemberCSV.export(members))
+        showingExporter = true
     }
 
     private func handleImport(_ result: Result<URL, Error>) {

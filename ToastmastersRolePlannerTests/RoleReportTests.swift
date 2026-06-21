@@ -1,20 +1,18 @@
 import XCTest
 import SwiftData
-@testable import ToastmastersRolePlanner
 
 @MainActor
 final class RoleReportTests: XCTestCase {
 
     // MARK: Helpers
 
-    private func makeContext() throws -> ModelContext {
+    private func makeContainer() throws -> ModelContainer {
         let schema = Schema([
             Member.self, MeetingTemplate.self, TemplateSlot.self,
             Meeting.self, RoleAssignment.self, Role.self, RoleDefault.self
         ])
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try ModelContainer(for: schema, configurations: [config])
-        return container.mainContext
+        return try ModelContainer(for: schema, configurations: [config])
     }
 
     private func day(_ year: Int, _ month: Int, _ dayOfMonth: Int) -> Date {
@@ -65,7 +63,8 @@ final class RoleReportTests: XCTestCase {
     // MARK: Tests
 
     func testCountsRolesAndAggregatesInstances() throws {
-        let context = try makeContext()
+        let container = try makeContainer()
+        let context = ModelContext(container)
         let toastmaster = addRole(context, key: "toastmaster", name: "Toastmaster", order: 0)
         let speaker = addRole(context, key: "speaker", name: "Speaker", multiple: true, order: 1)
         let alex = addMember(context, "Alex", joined: day(2025, 1, 1))
@@ -91,7 +90,8 @@ final class RoleReportTests: XCTestCase {
     }
 
     func testNoRoleAndAbsentCounts() throws {
-        let context = try makeContext()
+        let container = try makeContainer()
+        let context = ModelContext(container)
         let toastmaster = addRole(context, key: "toastmaster", name: "Toastmaster", order: 0)
         let alex = addMember(context, "Alex", joined: day(2025, 1, 1))
         let bryn = addMember(context, "Bryn", joined: day(2025, 1, 1))
@@ -121,7 +121,8 @@ final class RoleReportTests: XCTestCase {
     }
 
     func testNoRoleRespectsJoinedDate() throws {
-        let context = try makeContext()
+        let container = try makeContainer()
+        let context = ModelContext(container)
         let toastmaster = addRole(context, key: "toastmaster", name: "Toastmaster", order: 0)
         let carol = addMember(context, "Carol", joined: day(2025, 6, 1))
 
@@ -138,7 +139,8 @@ final class RoleReportTests: XCTestCase {
     }
 
     func testDateRangeExcludesOutsideMeetings() throws {
-        let context = try makeContext()
+        let container = try makeContainer()
+        let context = ModelContext(container)
         let toastmaster = addRole(context, key: "toastmaster", name: "Toastmaster", order: 0)
         let alex = addMember(context, "Alex", joined: day(2024, 1, 1))
 
@@ -155,7 +157,8 @@ final class RoleReportTests: XCTestCase {
     }
 
     func testInactiveMembersExcluded() throws {
-        let context = try makeContext()
+        let container = try makeContainer()
+        let context = ModelContext(container)
         let toastmaster = addRole(context, key: "toastmaster", name: "Toastmaster", order: 0)
         let active = addMember(context, "Active", active: true, joined: day(2025, 1, 1))
         let former = addMember(context, "Former", active: false, joined: day(2025, 1, 1))
@@ -173,7 +176,8 @@ final class RoleReportTests: XCTestCase {
     }
 
     func testUnlinkedHistoricNameNotCounted() throws {
-        let context = try makeContext()
+        let container = try makeContainer()
+        let context = ModelContext(container)
         let toastmaster = addRole(context, key: "toastmaster", name: "Toastmaster", order: 0)
         let alex = addMember(context, "Alex", joined: day(2025, 1, 1))
 

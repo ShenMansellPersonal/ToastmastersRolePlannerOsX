@@ -35,24 +35,6 @@ struct MeetingsListView: View {
         .navigationTitle("Meetings")
         .toolbar {
             ToolbarItem {
-                Menu {
-                    Button {
-                        startExport()
-                    } label: {
-                        Label("Export to JSON…", systemImage: "square.and.arrow.up")
-                    }
-                    .disabled(meetings.isEmpty)
-
-                    Button {
-                        showingImporter = true
-                    } label: {
-                        Label("Import from JSON…", systemImage: "square.and.arrow.down")
-                    }
-                } label: {
-                    Label("Import / Export", systemImage: "arrow.up.arrow.down")
-                }
-            }
-            ToolbarItem {
                 Button {
                     showingNewMeeting = true
                 } label: {
@@ -62,6 +44,12 @@ struct MeetingsListView: View {
                 .help(templates.isEmpty ? "Create a template first" : "New meeting")
             }
         }
+        .focusedSceneValue(\.importExport, ImportExportActions(
+            exportTitle: "Export Meetings to JSON…",
+            importTitle: "Import Meetings from JSON…",
+            exportAction: { startExport() },
+            importAction: { showingImporter = true }
+        ))
         .overlay {
             if meetings.isEmpty {
                 ContentUnavailableView {
@@ -118,8 +106,12 @@ struct MeetingsListView: View {
             defer { if needsScope { url.stopAccessingSecurityScopedResource() } }
             do {
                 let data = try Data(contentsOf: url)
-                let count = try MeetingIO.importing(data, into: context, members: members)
-                resultMessage = "Imported \(count) meeting\(count == 1 ? "" : "s")."
+                let outcome = try MeetingIO.importing(data, into: context, members: members, existing: meetings)
+                resultMessage = "Imported \(outcome.inserted) new, updated \(outcome.updated)."
+                // Jump to the imported meeting (the first one in the file).
+                if let first = outcome.meetings.first {
+                    selection = first
+                }
             } catch {
                 resultMessage = "Import failed: \(error.localizedDescription)"
             }

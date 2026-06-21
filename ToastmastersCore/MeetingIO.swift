@@ -74,11 +74,20 @@ enum MeetingIO {
 
     // MARK: Import
 
-    /// Decodes the file and inserts each meeting as a new record. Members are
-    /// matched by name (case-insensitively); unmatched names are left
-    /// unassigned. Returns how many meetings were imported.
+    struct ImportResult {
+        var inserted: Int
+        var updated: Int
+        /// Every meeting touched by the import, in file order.
+        var meetings: [Meeting]
+    }
+
+    /// Decodes the file and merges it into the store. Meetings are matched to
+    /// existing ones by **date (same day) + theme**: a match is updated in
+    /// place, otherwise a new meeting is inserted (so re-importing the same file
+    /// doesn't create duplicates). Members are matched by name; unmatched names
+    /// are kept as text.
     @discardableResult
-    static func importing(_ data: Data, into context: ModelContext, members: [Member]) throws -> Int {
+    static func importing(_ data: Data, into context: ModelContext, members: [Member], existing: [Meeting]) throws -> ImportResult {
         let file = try decoder().decode(File.self, from: data)
 
         var byName: [String: Member] = [:]
@@ -88,8 +97,32 @@ enum MeetingIO {
             return byName[name.lowercased()]
         }
 
+        let calendar = Calendar.current
+        func key(date: Date, theme: String) -> String {
+            "\(Int(calendar.startOfDay(for: date).timeIntervalSince1970))|\(theme)"
+        }
+        var existingByKey: [String: Meeting] = [:]
+        for meeting in existing { existingByKey[key(date: meeting.date, theme: meeting.theme)] = meeting }
+
+        var touched: [Meeting] = []
+        var inserted = 0
+        var updated = 0
+
         for dto in file.meetings {
-            let meeting = Meeting(date: dto.date, theme: dto.theme, templateName: dto.templateName)
+            let meeting: Meeting
+            if let match = existingByKey[key(date: dto.date, theme: dto.theme)] {
+                meeting = match
+                updated += 1
+            } else {
+                meeting = Meeting(date: dto.date, theme: dto.theme, templateName: dto.templateName)
+                context.insert(meeting)
+                existingByKey[key(date: dto.date, theme: dto.theme)] = meeting
+                inserted += 1
+            }
+
+            meeting.templateName = dto.templateName
+            // Replace any existing assignments.
+            for assignment in meeting.assignments { context.delete(assignment) }
             meeting.assignments = dto.assignments.map { item in
                 let matched = member(named: item.member)
                 let assignment = RoleAssignment(
@@ -107,9 +140,9 @@ enum MeetingIO {
                 return assignment
             }
             meeting.absentees = dto.absentees.compactMap { member(named: $0) }
-            context.insert(meeting)
+            touched.append(meeting)
         }
-        return file.meetings.count
+        return ImportResult(inserted: inserted, updated: updated, meetings: touched)
     }
 }
 

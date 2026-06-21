@@ -47,6 +47,7 @@ struct ToastmastersRolePlannerApp: App {
         }
         .commands {
             SidebarCommands()
+            ImportExportCommands()
         }
     }
 }
