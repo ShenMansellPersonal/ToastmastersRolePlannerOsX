@@ -250,7 +250,7 @@ struct MeetingDetailView: View {
     private var attendanceCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Attendance").font(.headline)
+                Text("Absentees").font(.headline)
                 Spacer()
                 if !meeting.absentees.isEmpty {
                     Text("\(meeting.absentees.count) marked absent")
