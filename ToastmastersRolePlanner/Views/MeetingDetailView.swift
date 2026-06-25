@@ -1,7 +1,9 @@
 import SwiftUI
 import SwiftData
+import AppKit
 
 struct MeetingDetailView: View {
+    @Environment(\.modelContext) private var context
     @Bindable var meeting: Meeting
 
     @Query(sort: \Member.name) private var allMembers: [Member]
@@ -38,15 +40,84 @@ struct MeetingDetailView: View {
         Set(meeting.assignments.compactMap { $0.member?.persistentModelID })
     }
 
-    /// Members linked to more than one role in this meeting.
-    private var duplicateMemberIDs: Set<PersistentIdentifier> {
-        var counts: [PersistentIdentifier: Int] = [:]
-        for assignment in meeting.assignments {
-            if let id = assignment.member?.persistentModelID {
-                counts[id, default: 0] += 1
-            }
+    /// Active members who aren't marked absent — the dropdown's candidates.
+    private var assignableMembers: [Member] {
+        let absent = Set(meeting.absentees.map(\.persistentModelID))
+        return activeMembers.filter { !absent.contains($0.persistentModelID) }
+    }
+
+    /// Members who held a role in the meeting immediately before this one, plus
+    /// whether such a meeting exists. Used to flag members who sat the last one out.
+    private func previousMeetingAssignees() -> (assignees: Set<PersistentIdentifier>, existed: Bool) {
+        let priorDate = allAssignments
+            .compactMap { $0.meeting }
+            .filter { $0.persistentModelID != meeting.persistentModelID && $0.date < meeting.date }
+            .map(\.date)
+            .max()
+        guard let priorDate else { return ([], false) }
+        var ids: Set<PersistentIdentifier> = []
+        for assignment in allAssignments {
+            guard let member = assignment.member,
+                  let otherMeeting = assignment.meeting,
+                  Calendar.current.isDate(otherMeeting.date, inSameDayAs: priorDate)
+            else { continue }
+            ids.insert(member.persistentModelID)
         }
-        return Set(counts.filter { $0.value > 1 }.keys)
+        return (ids, true)
+    }
+
+    /// Active members who hold no role and aren't marked absent.
+    private var membersWithoutRole: [Member] {
+        let absent = Set(meeting.absentees.map(\.persistentModelID))
+        return activeMembers.filter {
+            !assignedMemberIDs.contains($0.persistentModelID) && !absent.contains($0.persistentModelID)
+        }
+    }
+
+    /// A repeated *identical* slot (same role + instance, e.g. Toastmaster twice)
+    /// is meant to be the same person, so it isn't a clash. Numbered copies
+    /// (Speaker Intro #1 vs #2) are distinct slots and clash if shared.
+    private func slotKey(_ assignment: RoleAssignment) -> String {
+        "\(assignment.roleRaw)#\(assignment.instanceNumber)"
+    }
+
+    /// Key used for clash detection. Intro and Evaluation of the *same* speech
+    /// collapse to one key, so the same person doing both isn't flagged.
+    private func clashKey(_ assignment: RoleAssignment) -> String {
+        if assignment.roleRaw == "speakerIntroduction" || assignment.roleRaw == "speakerEvaluation" {
+            return "speakerPair#\(assignment.instanceNumber)"
+        }
+        return slotKey(assignment)
+    }
+
+    /// The Introduction↔Evaluation partner for a speaker slot, same instance.
+    private func speakerPartner(of assignment: RoleAssignment) -> RoleAssignment? {
+        let partnerKey: String
+        switch assignment.roleRaw {
+        case "speakerIntroduction": partnerKey = "speakerEvaluation"
+        case "speakerEvaluation": partnerKey = "speakerIntroduction"
+        default: return nil
+        }
+        return meeting.assignments.first { $0.roleRaw == partnerKey && $0.instanceNumber == assignment.instanceNumber }
+    }
+
+    /// Assigns a member to a role, mirroring the choice to any identical
+    /// repeated slots (same role + instance, e.g. both Toastmaster slots).
+    private func assign(_ member: Member?, to assignment: RoleAssignment) {
+        let key = slotKey(assignment)
+        for slot in meeting.assignments where slotKey(slot) == key {
+            slot.assign(member)
+        }
+    }
+
+    /// Members linked to more than one *distinct* role slot in this meeting.
+    private var duplicateMemberIDs: Set<PersistentIdentifier> {
+        var slotsByMember: [PersistentIdentifier: Set<String>] = [:]
+        for assignment in meeting.assignments {
+            guard let id = assignment.member?.persistentModelID else { continue }
+            slotsByMember[id, default: []].insert(clashKey(assignment))
+        }
+        return Set(slotsByMember.filter { $0.value.count > 1 }.keys)
     }
 
     private func label(for assignment: RoleAssignment) -> String {
@@ -58,14 +129,19 @@ struct MeetingDetailView: View {
     private var warnings: [String] {
         var result: [String] = []
 
-        // Same member in multiple manned roles.
-        var rolesByMember: [PersistentIdentifier: (name: String, labels: [String])] = [:]
+        // Same member across more than one distinct role slot. Repeated
+        // identical slots (same role + instance) are expected to share a person.
+        var info: [PersistentIdentifier: (name: String, keys: Set<String>, labels: [String])] = [:]
         for assignment in meeting.orderedAssignments {
             guard let member = assignment.member, rolesByKey[assignment.roleRaw]?.isUnmanned != true else { continue }
-            rolesByMember[member.persistentModelID, default: (member.name, [])].labels.append(label(for: assignment))
+            var entry = info[member.persistentModelID] ?? (member.name, [], [])
+            if entry.keys.insert(clashKey(assignment)).inserted {
+                entry.labels.append(label(for: assignment))
+            }
+            info[member.persistentModelID] = entry
         }
-        for info in rolesByMember.values where info.labels.count > 1 {
-            result.append("\(info.name) is assigned to \(info.labels.count) roles: \(info.labels.joined(separator: ", ")).")
+        for entry in info.values where entry.keys.count > 1 {
+            result.append("\(entry.name) is assigned to \(entry.keys.count) different roles: \(entry.labels.joined(separator: ", ")).")
         }
         result.sort()
 
@@ -116,6 +192,17 @@ struct MeetingDetailView: View {
     /// absentees, and places the most-overdue member into the role they're most
     /// overdue for.
     private func autoFill() {
+        // First, where one half of a speaker pair (intro/eval) is already set
+        // and the other is empty, copy the same person across.
+        for assignment in meeting.assignments {
+            guard assignment.isFilled,
+                  let partner = speakerPartner(of: assignment),
+                  !partner.isFilled
+            else { continue }
+            partner.member = assignment.member
+            partner.memberName = assignment.memberName
+        }
+
         var remaining = fillableAssignments
         guard !remaining.isEmpty else { return }
 
@@ -138,8 +225,19 @@ struct MeetingDetailView: View {
             guard let chosen = remaining.min(by: { lhs, rhs in
                 olderFirst(memberRoleDates[lhs.roleRaw], memberRoleDates[rhs.roleRaw], tieBreak: lhs.order < rhs.order)
             }) else { break }
-            chosen.assign(member)
-            remaining.removeAll { $0 === chosen }
+            // Fill this slot and any identical repeats (same role + instance)
+            // with the same person.
+            let key = slotKey(chosen)
+            for slot in remaining where slotKey(slot) == key {
+                slot.assign(member)
+            }
+            remaining.removeAll { slotKey($0) == key }
+
+            // Default the same person to introduce and evaluate a speech.
+            if let partner = speakerPartner(of: chosen), remaining.contains(where: { $0 === partner }) {
+                partner.assign(member)
+                remaining.removeAll { $0 === partner }
+            }
         }
     }
 
@@ -161,6 +259,7 @@ struct MeetingDetailView: View {
                     warningsCard
                 }
                 rolesCard
+                unassignedCard
                 attendanceCard
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -202,7 +301,8 @@ struct MeetingDetailView: View {
     }
 
     private var rolesCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let previous = previousMeetingAssignees()
+        return VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Roles").font(.headline)
                 Spacer()
@@ -217,6 +317,15 @@ struct MeetingDetailView: View {
                 .controlSize(.small)
                 .disabled(fillableAssignments.isEmpty)
                 .help("Fill empty roles, favouring members who haven't had a role for the longest")
+
+                Button {
+                    copyRoster()
+                } label: {
+                    Label("Copy", systemImage: "doc.on.doc")
+                }
+                .controlSize(.small)
+                .keyboardShortcut("c", modifiers: .command)
+                .help("Copy the roster (one name per line) to the clipboard (⌘C)")
             }
 
             GroupBox {
@@ -231,16 +340,49 @@ struct MeetingDetailView: View {
                             AssignmentRow(
                                 assignment: assignment,
                                 role: rolesByKey[assignment.roleRaw],
-                                members: activeMembers,
+                                members: assignableMembers,
                                 lastPerformed: lastPerformedDates(roleKey: assignment.roleRaw),
                                 referenceDate: meeting.date,
-                                duplicateMemberIDs: duplicateMemberIDs
+                                duplicateMemberIDs: duplicateMemberIDs,
+                                assignedMemberIDs: assignedMemberIDs,
+                                previousMeetingAssignees: previous.assignees,
+                                hadPreviousMeeting: previous.existed,
+                                assign: { assign($0, to: assignment) }
                             )
                             if index < meeting.assignments.count - 1 {
                                 Divider()
                             }
                         }
                     }
+                    .padding(6)
+                }
+            }
+        }
+    }
+
+    private var unassignedCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Members without a role").font(.headline)
+                Spacer()
+                Text("\(membersWithoutRole.count)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            GroupBox {
+                if membersWithoutRole.isEmpty {
+                    Text("Every active member has a role or is absent.")
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(6)
+                } else {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(membersWithoutRole) { member in
+                            Text(member.name)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(6)
                 }
             }
@@ -293,12 +435,48 @@ struct MeetingDetailView: View {
         mannedAssignments.filter { $0.isFilled }.count
     }
 
-    private func toggleAbsent(_ member: Member) {
-        if let index = meeting.absentees.firstIndex(where: { $0.persistentModelID == member.persistentModelID }) {
-            meeting.absentees.remove(at: index)
-        } else {
-            meeting.absentees.append(member)
+    /// Fixed roster order for ⌘C copy (role key, instance). Matches the club's
+    /// agenda layout; a missing/unfilled slot becomes "unassigned".
+    private static let rosterOrder: [(key: String, instance: Int)] = [
+        ("sergeantAtArms", 0),
+        ("toastmaster", 0),
+        ("grammarian", 0),                  // Grammarian & Ah-Counter
+        ("warmUp", 0),
+        ("speakerIntroduction", 1), ("speaker", 1), ("speakerEvaluation", 1),
+        ("speakerIntroduction", 2), ("speaker", 2), ("speakerEvaluation", 2),
+        ("speakerIntroduction", 3), ("speaker", 3), ("speakerEvaluation", 3),
+        ("tableTopicsMaster", 0),
+        ("tableTopicsEvaluator", 1), ("tableTopicsEvaluator", 2),
+        ("generalEvaluatorEvaluations", 0),
+        ("generalEvaluatorFunctionary", 0),
+        ("timekeeper", 0)
+    ]
+
+    /// Copies the roster to the clipboard: one name per line in the fixed order,
+    /// "unassigned" where empty, then every member without a role.
+    private func copyRoster() {
+        var lines: [String] = []
+        for slot in Self.rosterOrder {
+            let assignment = meeting.assignments.first { $0.roleRaw == slot.key && $0.instanceNumber == slot.instance }
+            lines.append(assignment?.assigneeName ?? "unassigned")
         }
+        lines.append(contentsOf: membersWithoutRole.map(\.name))
+
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(lines.joined(separator: "\n"), forType: .string)
+    }
+
+    private func toggleAbsent(_ member: Member) {
+        // Reassign the whole array (reliably registers the change) and save, so
+        // it persists to the store rather than only living in memory.
+        var updated = meeting.absentees
+        if let index = updated.firstIndex(where: { $0.persistentModelID == member.persistentModelID }) {
+            updated.remove(at: index)
+        } else {
+            updated.append(member)
+        }
+        meeting.absentees = updated
+        try? context.save()
     }
 }
 
@@ -314,8 +492,30 @@ private struct AssignmentRow: View {
     let referenceDate: Date
     /// Members linked to more than one role in this meeting (flagged as clashes).
     let duplicateMemberIDs: Set<PersistentIdentifier>
+    /// Members already holding a role in this meeting.
+    let assignedMemberIDs: Set<PersistentIdentifier>
+    /// Members who had a role in the previous meeting.
+    let previousMeetingAssignees: Set<PersistentIdentifier>
+    /// Whether a previous meeting exists to compare against.
+    let hadPreviousMeeting: Bool
+    /// Assigns (or clears) the member, syncing identical repeated slots.
+    let assign: (Member?) -> Void
 
     @State private var showingTimes = false
+
+    /// Dropdown row decoration: strikethrough if the member already has a role
+    /// in this meeting; a "!" if they sat out the previous meeting.
+    @ViewBuilder
+    private func menuLabel(for member: Member) -> some View {
+        let text = memberLabel(member)
+        if assignedMemberIDs.contains(member.persistentModelID) {
+            Text(text).strikethrough()
+        } else if hadPreviousMeeting && !previousMeetingAssignees.contains(member.persistentModelID) {
+            Label(text, systemImage: "exclamationmark.circle")
+        } else {
+            Text(text)
+        }
+    }
 
     private var isUnmanned: Bool { role?.isUnmanned ?? false }
     private var defaultTiming: Timing { role?.timing ?? .zero }
@@ -357,10 +557,14 @@ private struct AssignmentRow: View {
                             .help("This member is assigned to more than one role")
                     }
                     Menu {
-                        Button("— Unassigned —") { assignment.assign(nil) }
+                        Button("— Unassigned —") { assign(nil) }
                         Divider()
                         ForEach(sortedMembers) { member in
-                            Button(memberLabel(member)) { assignment.assign(member) }
+                            Button {
+                                assign(member)
+                            } label: {
+                                menuLabel(for: member)
+                            }
                         }
                     } label: {
                         Text(assigneeLabel)

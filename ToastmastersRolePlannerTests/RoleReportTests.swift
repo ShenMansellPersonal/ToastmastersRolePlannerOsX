@@ -89,6 +89,51 @@ final class RoleReportTests: XCTestCase {
         XCTAssertEqual(report.grandTotal, 4)
     }
 
+    func testSameRoleTwiceInMeetingCountsOnce() throws {
+        let container = try makeContainer()
+        let context = ModelContext(container)
+        let toastmaster = addRole(context, key: "toastmaster", name: "Toastmaster", order: 0)
+        let speaker = addRole(context, key: "speaker", name: "Speaker", multiple: true, order: 1)
+        let alex = addMember(context, "Alex", joined: day(2025, 1, 1))
+
+        // Same role twice (both Toastmaster slots) + the same role at two
+        // instances (Speaker #1 and #2) in one meeting.
+        addMeeting(context, on: day(2025, 3, 1), assignments: [
+            ("toastmaster", alex), ("toastmaster", alex),
+            ("speaker", alex), ("speaker", alex)
+        ])
+
+        let report = RoleReport.build(
+            members: [alex], roles: [toastmaster, speaker],
+            meetings: try fetchMeetings(context),
+            start: day(2025, 1, 1), end: day(2025, 12, 31)
+        )
+
+        XCTAssertEqual(row(report, "Alex").counts, [1, 1])   // each role counted once
+        XCTAssertEqual(row(report, "Alex").total, 2)
+    }
+
+    func testIntroAndEvalShareOneColumnCountedOncePerMeeting() throws {
+        let container = try makeContainer()
+        let context = ModelContext(container)
+        let intro = addRole(context, key: "speakerIntroduction", name: "Speaker Introduction", multiple: true, order: 0)
+        let eval = addRole(context, key: "speakerEvaluation", name: "Speaker Evaluation", multiple: true, order: 1)
+        let alex = addMember(context, "Alex", joined: day(2025, 1, 1))
+
+        // Intro + eval in one meeting → one credit; eval again next week → another.
+        addMeeting(context, on: day(2025, 3, 1), assignments: [("speakerIntroduction", alex), ("speakerEvaluation", alex)])
+        addMeeting(context, on: day(2025, 3, 8), assignments: [("speakerEvaluation", alex)])
+
+        let report = RoleReport.build(
+            members: [alex], roles: [intro, eval],
+            meetings: try fetchMeetings(context),
+            start: day(2025, 1, 1), end: day(2025, 12, 31)
+        )
+
+        XCTAssertEqual(report.roleNames, ["Speaker Intro/Eval"])
+        XCTAssertEqual(row(report, "Alex").counts, [2])   // one per meeting
+    }
+
     func testNoRoleAndAbsentCounts() throws {
         let container = try makeContainer()
         let context = ModelContext(container)

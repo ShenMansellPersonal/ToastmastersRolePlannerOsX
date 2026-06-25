@@ -149,6 +149,9 @@ struct TemplateEditor: View {
                 TextField("Template name", text: $template.name)
                 TextField("Notes (optional)", text: $template.details, axis: .vertical)
                     .lineLimit(1...4)
+                if !template.slots.isEmpty {
+                    LabeledContent("Estimated length", value: "\(totalGreen.asMMSS) – \(totalRed.asMMSS)")
+                }
             }
 
             Section {
@@ -184,14 +187,6 @@ struct TemplateEditor: View {
                 .menuStyle(.borderlessButton)
                 .fixedSize()
                 .padding(.top, 4)
-            }
-
-            if !template.slots.isEmpty {
-                Section {
-                    LabeledContent("Estimated length", value: "\(totalGreen.asMMSS) – \(totalRed.asMMSS)")
-                } footer: {
-                    Text("Sum of every role's green-to-red signal times (minutes:seconds).")
-                }
             }
         }
         .formStyle(.grouped)

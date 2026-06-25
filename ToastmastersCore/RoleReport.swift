@@ -30,8 +30,25 @@ struct RoleReport {
         let sortedRoles = roles
             .filter(\.showInRolesReport)
             .sorted { $0.sortOrder < $1.sortOrder }
-        let roleKeys = sortedRoles.map(\.key)
-        let indexForKey = Dictionary(uniqueKeysWithValues: roleKeys.enumerated().map { ($1, $0) })
+        // Build the columns. Speaker Introduction and Speaker Evaluation share a
+        // single column, so doing both in a meeting counts once.
+        func mergedKey(_ key: String) -> String {
+            (key == "speakerIntroduction" || key == "speakerEvaluation") ? "speakerIntroEval" : key
+        }
+        var columnNames: [String] = []
+        var indexForKey: [String: Int] = [:]
+        var indexForMerged: [String: Int] = [:]
+        for role in sortedRoles {
+            let merged = mergedKey(role.key)
+            if let existing = indexForMerged[merged] {
+                indexForKey[role.key] = existing
+            } else {
+                let column = columnNames.count
+                indexForMerged[merged] = column
+                indexForKey[role.key] = column
+                columnNames.append(merged == "speakerIntroEval" ? "Speaker Intro/Eval" : role.name)
+            }
+        }
 
         let activeMembers = members
             .filter(\.isActive)
@@ -43,7 +60,7 @@ struct RoleReport {
         var absent: [PersistentIdentifier: Int] = [:]
         var joinedDay: [PersistentIdentifier: Date] = [:]
         for member in activeMembers {
-            counts[member.persistentModelID] = Array(repeating: 0, count: roleKeys.count)
+            counts[member.persistentModelID] = Array(repeating: 0, count: columnNames.count)
             noRole[member.persistentModelID] = 0
             absent[member.persistentModelID] = 0
             joinedDay[member.persistentModelID] = calendar.startOfDay(for: member.joinedDate)
@@ -56,12 +73,18 @@ struct RoleReport {
             let assignedIDs = Set(meeting.assignments.compactMap { $0.member?.persistentModelID })
             let absentIDs = Set(meeting.absentees.map(\.persistentModelID))
 
+            // Count each (member, role) at most once per meeting, so someone
+            // scheduled for the same role twice in a meeting only counts once.
+            var countedThisMeeting: [PersistentIdentifier: Set<Int>] = [:]
             for assignment in meeting.assignments {
                 guard let member = assignment.member,
                       let index = indexForKey[assignment.roleRaw],
                       counts[member.persistentModelID] != nil
                 else { continue }
-                counts[member.persistentModelID]![index] += 1
+                let id = member.persistentModelID
+                if countedThisMeeting[id, default: []].insert(index).inserted {
+                    counts[id]![index] += 1
+                }
             }
 
             for id in activeIDs {
@@ -76,12 +99,12 @@ struct RoleReport {
         }
 
         var rows: [Row] = []
-        var columnTotals = Array(repeating: 0, count: roleKeys.count)
+        var columnTotals = Array(repeating: 0, count: columnNames.count)
         var noRoleTotal = 0
         var absentTotal = 0
         for member in activeMembers {
             let id = member.persistentModelID
-            let memberCounts = counts[id] ?? Array(repeating: 0, count: roleKeys.count)
+            let memberCounts = counts[id] ?? Array(repeating: 0, count: columnNames.count)
             for index in memberCounts.indices { columnTotals[index] += memberCounts[index] }
             let memberNoRole = noRole[id] ?? 0
             let memberAbsent = absent[id] ?? 0
@@ -97,7 +120,7 @@ struct RoleReport {
         }
 
         return RoleReport(
-            roleNames: sortedRoles.map(\.name),
+            roleNames: columnNames,
             rows: rows,
             columnTotals: columnTotals,
             grandTotal: columnTotals.reduce(0, +),

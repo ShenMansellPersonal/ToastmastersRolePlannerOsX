@@ -17,6 +17,9 @@ struct MeetingsListView: View {
     @State private var exportDocument = MeetingsJSONDocument(data: Data())
     @State private var resultMessage: String?
 
+    @State private var showingRosterExporter = false
+    @State private var rosterDocument = MembersCSVDocument(text: "")
+
     var body: some View {
         List(selection: $selection) {
             ForEach(meetings) { meeting in
@@ -50,6 +53,7 @@ struct MeetingsListView: View {
             exportAction: { startExport() },
             importAction: { showingImporter = true }
         ))
+        .focusedSceneValue(\.rosterExport, { startRosterExport() })
         .overlay {
             if meetings.isEmpty {
                 ContentUnavailableView {
@@ -82,6 +86,21 @@ struct MeetingsListView: View {
         ) { result in
             handleImport(result)
         }
+        // Attached to a separate view node so it doesn't shadow the Meetings
+        // JSON exporter above (two .fileExporter on one view conflict).
+        .background {
+            Color.clear
+                .fileExporter(
+                    isPresented: $showingRosterExporter,
+                    document: rosterDocument,
+                    contentType: .commaSeparatedText,
+                    defaultFilename: "Roster"
+                ) { result in
+                    if case .failure(let error) = result {
+                        resultMessage = "Export failed: \(error.localizedDescription)"
+                    }
+                }
+        }
         .alert("Meetings", isPresented: Binding(get: { resultMessage != nil }, set: { if !$0 { resultMessage = nil } })) {
             Button("OK", role: .cancel) { resultMessage = nil }
         } message: {
@@ -97,6 +116,16 @@ struct MeetingsListView: View {
         } catch {
             resultMessage = "Export failed: \(error.localizedDescription)"
         }
+    }
+
+    private func startRosterExport() {
+        let csv = RosterCSV.export(
+            meetings: meetings,
+            activeMembers: members.filter(\.isActive),
+            rolesByKey: Role.lookup(roles)
+        )
+        rosterDocument = MembersCSVDocument(text: csv)
+        showingRosterExporter = true
     }
 
     private func handleImport(_ result: Result<URL, Error>) {

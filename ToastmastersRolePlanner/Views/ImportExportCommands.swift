@@ -18,6 +18,15 @@ extension FocusedValues {
         get { self[ImportExportKey.self] }
         set { self[ImportExportKey.self] = newValue }
     }
+
+    struct RosterExportKey: FocusedValueKey {
+        typealias Value = () -> Void
+    }
+
+    var rosterExport: (() -> Void)? {
+        get { self[RosterExportKey.self] }
+        set { self[RosterExportKey.self] = newValue }
+    }
 }
 
 /// File ▸ Import / Export menu items. Enabled only when the focused scene
@@ -31,7 +40,18 @@ struct ImportExportCommands: Commands {
                 .disabled(actions == nil)
             Button(actions?.importTitle ?? "Import…") { actions?.importAction() }
                 .disabled(actions == nil)
+            RosterExportButton()
         }
+    }
+}
+
+/// "Export Roster (CSV)…" — enabled when the focused scene provides it (Meetings).
+private struct RosterExportButton: View {
+    @FocusedValue(\.rosterExport) private var rosterExport
+
+    var body: some View {
+        Button("Export Roster (CSV)…") { rosterExport?() }
+            .disabled(rosterExport == nil)
     }
 }
 

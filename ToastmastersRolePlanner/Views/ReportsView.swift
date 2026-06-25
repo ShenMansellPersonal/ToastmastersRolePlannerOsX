@@ -19,7 +19,7 @@ struct RoleParticipationReportView: View {
     @Query private var roles: [Role]
     @Query private var meetings: [Meeting]
 
-    @State private var start = Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? Date()
+    @State private var start = Calendar.current.date(byAdding: .month, value: -6, to: Date()) ?? Date()
     @State private var end = Date()
 
     @State private var showingExporter = false
@@ -35,6 +35,11 @@ struct RoleParticipationReportView: View {
             HStack(spacing: 16) {
                 DatePicker("From", selection: $start, displayedComponents: [.date])
                 DatePicker("To", selection: $end, displayedComponents: [.date])
+                Button("Future") {
+                    start = Calendar.current.startOfDay(for: Date())
+                    end = Calendar.current.date(byAdding: .year, value: 1, to: Date()) ?? Date()
+                }
+                .help("Show today through one year from now")
                 Spacer()
                 Button {
                     exportPDF()

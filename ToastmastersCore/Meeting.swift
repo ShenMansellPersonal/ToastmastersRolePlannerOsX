@@ -14,8 +14,9 @@ final class Meeting {
     @Relationship(deleteRule: .cascade, inverse: \RoleAssignment.meeting)
     var assignments: [RoleAssignment] = []
 
-    /// Members explicitly marked as absent for this meeting.
-    @Relationship
+    /// Members explicitly marked as absent for this meeting. Many-to-many (a
+    /// member can be absent from many meetings) via the inverse on `Member`.
+    @Relationship(inverse: \Member.absentMeetings)
     var absentees: [Member] = []
 
     init(date: Date = Date(), theme: String = "", templateName: String = "") {

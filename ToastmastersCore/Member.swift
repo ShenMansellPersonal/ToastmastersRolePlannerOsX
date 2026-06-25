@@ -15,6 +15,10 @@ final class Member {
     /// predate this field (and for imports without a joined date).
     var joinedDate: Date = Member.defaultJoinedDate
 
+    /// Inverse of `Meeting.absentees` — makes the absentee link many-to-many so
+    /// a member can be marked absent from any number of meetings independently.
+    var absentMeetings: [Meeting] = []
+
     init(name: String, isActive: Bool = true, notes: String = "", joinedDate: Date = Date()) {
         self.name = name
         self.isActive = isActive
