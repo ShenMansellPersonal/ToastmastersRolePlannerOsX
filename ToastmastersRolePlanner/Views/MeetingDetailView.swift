@@ -16,22 +16,31 @@ struct MeetingDetailView: View {
         allMembers.filter(\.isActive)
     }
 
-    /// For the given role, the most recent prior meeting date on which each
-    /// member performed that role. Only meetings before this one are counted,
-    /// so the value reads as "days before this meeting they last did the role".
+    /// For the given role, the most relevant meeting date for each member: the
+    /// current meeting's date if they're already assigned here, else the nearest
+    /// future meeting, else the most recent past meeting.
     private func lastPerformedDates(roleKey: String) -> [PersistentIdentifier: Date] {
-        var result: [PersistentIdentifier: Date] = [:]
+        var currentDates: [PersistentIdentifier: Date] = [:]
+        var futureDates: [PersistentIdentifier: Date] = [:]
+        var pastDates: [PersistentIdentifier: Date] = [:]
         for assignment in allAssignments {
             guard assignment.roleRaw == roleKey,
                   let member = assignment.member,
-                  let otherMeeting = assignment.meeting,
-                  otherMeeting.persistentModelID != meeting.persistentModelID,
-                  otherMeeting.date < meeting.date
+                  let otherMeeting = assignment.meeting
             else { continue }
             let id = member.persistentModelID
-            if let existing = result[id], existing >= otherMeeting.date { continue }
-            result[id] = otherMeeting.date
+            let d = otherMeeting.date
+            if otherMeeting.persistentModelID == meeting.persistentModelID {
+                currentDates[id] = d
+            } else if d > meeting.date {
+                if futureDates[id] == nil || d < futureDates[id]! { futureDates[id] = d }
+            } else {
+                if pastDates[id] == nil || d > pastDates[id]! { pastDates[id] = d }
+            }
         }
+        var result = pastDates
+        for (id, d) in futureDates { result[id] = d }
+        for (id, d) in currentDates { result[id] = d }
         return result
     }
 
@@ -617,8 +626,7 @@ private struct AssignmentRow: View {
         return "— Unassigned —"
     }
 
-    /// "Name · 14d ago" / "Name · today" / "Name · never" — recency of when this
-    /// member last performed this role, measured back from the meeting date.
+    /// "Name · 14d ago" / "Name · now" / "Name · in 7d" / "Name · never"
     private func memberLabel(_ member: Member) -> String {
         let suffix: String
         if let last = lastPerformed[member.persistentModelID] {
@@ -628,7 +636,9 @@ private struct AssignmentRow: View {
                 from: calendar.startOfDay(for: last),
                 to: calendar.startOfDay(for: referenceDate)
             ).day ?? 0
-            suffix = days <= 0 ? "today" : "\(days)d ago"
+            if days == 0 { suffix = "now" }
+            else if days < 0 { suffix = "in \(-days)d" }
+            else { suffix = "\(days)d ago" }
         } else {
             suffix = "never"
         }

@@ -126,17 +126,24 @@ struct MemberDetailPage: View {
             }
 
             ForEach(sections) { section in
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(section.memberName).font(.headline)
-                    ForEach(section.entries) { entry in
-                        HStack(alignment: .firstTextBaseline) {
-                            Text(entry.roleName).lineLimit(1)
-                            Spacer(minLength: 12)
-                            Text(recency(entry.daysAgo))
-                                .frame(width: 110, alignment: .trailing)
-                                .foregroundStyle(entry.daysAgo == nil ? .secondary : .primary)
+                    // Role rows with alternating grey bands; the striping
+                    // restarts at each member (first row after the name shaded).
+                    VStack(spacing: 0) {
+                        ForEach(Array(section.entries.enumerated()), id: \.element.id) { idx, entry in
+                            HStack(alignment: .firstTextBaseline) {
+                                Text(entry.roleName).lineLimit(1)
+                                Spacer(minLength: 12)
+                                Text(recency(entry.daysAgo))
+                                    .frame(width: 110, alignment: .trailing)
+                                    .foregroundStyle(entry.daysAgo == nil ? .secondary : .primary)
+                            }
+                            .font(.system(size: 12))
+                            .padding(.vertical, 2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(idx.isMultiple(of: 2) ? Color.gray.opacity(0.12) : Color.clear)
                         }
-                        .font(.system(size: 12))
                     }
                 }
                 .padding(.bottom, sectionBottomPadding)
