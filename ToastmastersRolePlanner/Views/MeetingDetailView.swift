@@ -444,32 +444,56 @@ struct MeetingDetailView: View {
         mannedAssignments.filter { $0.isFilled }.count
     }
 
-    /// Fixed roster order for ⌘C copy (role key, instance). Matches the club's
-    /// agenda layout; a missing/unfilled slot becomes "unassigned".
-    private static let rosterOrder: [(key: String, instance: Int)] = [
-        ("sergeantAtArms", 0),
-        ("toastmaster", 0),
-        ("grammarian", 0),                  // Grammarian & Ah-Counter
-        ("warmUp", 0),
-        ("speakerIntroduction", 1), ("speaker", 1), ("speakerEvaluation", 1),
-        ("speakerIntroduction", 2), ("speaker", 2), ("speakerEvaluation", 2),
-        ("speakerIntroduction", 3), ("speaker", 3), ("speakerEvaluation", 3),
-        ("tableTopicsMaster", 0),
-        ("tableTopicsEvaluator", 1), ("tableTopicsEvaluator", 2),
-        ("generalEvaluatorEvaluations", 0),
-        ("generalEvaluatorFunctionary", 0),
-        ("timekeeper", 0)
-    ]
-
-    /// Copies the roster to the clipboard: one name per line in the fixed order,
-    /// "unassigned" where empty, then every member without a role.
+    /// Copies the roster to the clipboard as tab-separated "role<TAB>name" lines
+    /// in agenda order. Unmanned roles (Break, President's Close, Warm-Up) are
+    /// excluded; unfilled manned roles are listed as "unassigned". A single-slot
+    /// role that mistakenly appears more than once (e.g. Toastmaster, Sergeant at
+    /// Arms) collapses to one line unless the assignee differs; multi-instance
+    /// roles (speakers, intros, evaluators) are always listed individually.
+    /// When one person both introduces and evaluates the same speaker, the two
+    /// lines collapse into a single "Intro / Eval #x" line in place of the intro.
+    /// Members with no role and apologies are flattened — one line each.
     private func copyRoster() {
-        var lines: [String] = []
-        for slot in Self.rosterOrder {
-            let assignment = meeting.assignments.first { $0.roleRaw == slot.key && $0.instanceNumber == slot.instance }
-            lines.append(assignment?.assigneeName ?? "unassigned")
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "d MMMM'.' yyyy"   // e.g. "6 July. 2026"
+        var lines: [String] = [dateFormatter.string(from: meeting.date)]
+        var seen = Set<String>()   // roleRaw + name, to drop duplicate single-slot roles
+
+        // When the same person introduces and evaluates a speaker (matched by
+        // instance number), collapse the two lines into one "Intro / Eval #x" line
+        // shown in place of the Introduction; the separate Evaluation line is dropped.
+        let introKey = RoleType.speakerIntroduction.rawValue
+        let evalKey = RoleType.speakerEvaluation.rawValue
+        let evalNameByInstance = Dictionary(
+            meeting.assignments
+                .filter { $0.roleRaw == evalKey }
+                .compactMap { a in a.assigneeName.map { (a.instanceNumber, $0) } },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let mergedInstances = Set(
+            meeting.assignments
+                .filter { $0.roleRaw == introKey }
+                .filter { a in a.assigneeName != nil && evalNameByInstance[a.instanceNumber] == a.assigneeName }
+                .map(\.instanceNumber)
+        )
+
+        for assignment in meeting.orderedAssignments {
+            let role = rolesByKey[assignment.roleRaw]
+            if role?.isUnmanned == true { continue }
+            // Drop the Evaluation line when it's merged into the Introduction's.
+            if assignment.roleRaw == evalKey, mergedInstances.contains(assignment.instanceNumber) { continue }
+            let name = assignment.assigneeName ?? "unassigned"
+            if role?.allowsMultiple != true,
+               !seen.insert("\(assignment.roleRaw)\t\(name)").inserted { continue }
+            if assignment.roleRaw == introKey, mergedInstances.contains(assignment.instanceNumber) {
+                let suffix = assignment.instanceNumber > 0 ? " #\(assignment.instanceNumber)" : ""
+                lines.append("Intro / Eval\(suffix)\t\(name)")
+            } else {
+                lines.append("\(assignment.displayLabel(role))\t\(name)")
+            }
         }
-        lines.append(contentsOf: membersWithoutRole.map(\.name))
+        lines.append(contentsOf: membersWithoutRole.map { "No role\t\($0.name)" })
+        lines.append(contentsOf: meeting.absentees.map { "Apologies\t\($0.name)" })
 
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(lines.joined(separator: "\n"), forType: .string)

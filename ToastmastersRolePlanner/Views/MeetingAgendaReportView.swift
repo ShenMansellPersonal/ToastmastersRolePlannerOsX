@@ -37,8 +37,6 @@ struct MeetingAgendaReportView: View {
     @State private var start = Calendar.current.startOfDay(for: Date())
     @State private var end = Calendar.current.date(byAdding: .day, value: 56, to: Date()) ?? Date()
 
-    @State private var showingExporter = false
-    @State private var pdfDocument = ReportPDFDocument(data: Data())
     @State private var errorMessage: String?
 
     @Query private var members: [Member]
@@ -60,9 +58,9 @@ struct MeetingAgendaReportView: View {
                 DatePicker("To", selection: $end, displayedComponents: [.date])
                 Spacer()
                 Button {
-                    exportPDF()
+                    exportPDFs()
                 } label: {
-                    Label("Export PDF…", systemImage: "square.and.arrow.up")
+                    Label("Export PDFs…", systemImage: "square.and.arrow.up")
                 }
                 .disabled(agendas.isEmpty)
             }
@@ -88,16 +86,6 @@ struct MeetingAgendaReportView: View {
             }
         }
         .navigationTitle("Meeting Agendas")
-        .fileExporter(
-            isPresented: $showingExporter,
-            document: pdfDocument,
-            contentType: .pdf,
-            defaultFilename: "Meeting Agendas"
-        ) { result in
-            if case .failure(let error) = result {
-                errorMessage = error.localizedDescription
-            }
-        }
         .alert("Export failed", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("OK", role: .cancel) { errorMessage = nil }
         } message: {
@@ -105,10 +93,33 @@ struct MeetingAgendaReportView: View {
         }
     }
 
+    /// Saves each meeting's agenda to its own PDF in a user-chosen folder, named
+    /// e.g. "2026 07 06 - July 06 Oaklands Toastmasters Agenda.pdf" — the leading
+    /// ISO-style date sorts chronologically, the second is for easy reading.
+    /// Existing files of the same name are overwritten.
     @MainActor
-    private func exportPDF() {
-        pdfDocument = ReportPDFDocument(data: MeetingAgendaPDF.render(agendas))
-        showingExporter = true
+    private func exportPDFs() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Save Agendas"
+        panel.message = "Choose a folder to save the meeting agendas"
+        guard panel.runModal() == .OK, let folder = panel.url else { return }
+
+        let formatter = DateFormatter()
+        // e.g. "2026 07 06 - July 06" — sortable prefix, readable suffix.
+        formatter.dateFormat = "yyyy MM dd' - 'MMMM dd"
+        do {
+            for agenda in agendas {
+                let data = MeetingAgendaPDF.render([agenda])
+                let filename = "\(formatter.string(from: agenda.date)) Oaklands Toastmasters Agenda.pdf"
+                try data.write(to: folder.appendingPathComponent(filename))
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
 
