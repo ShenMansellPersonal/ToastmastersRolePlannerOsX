@@ -269,6 +269,7 @@ struct MeetingDetailView: View {
                 }
                 rolesCard
                 unassignedCard
+                tableTopicsCard
                 attendanceCard
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -398,6 +399,45 @@ struct MeetingDetailView: View {
         }
     }
 
+    private var tableTopicsCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Spoke at Table Topics").font(.headline)
+                Spacer()
+                if !meeting.tableTopicsSpeakers.isEmpty {
+                    Text("\(meeting.tableTopicsSpeakers.count) ticked")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            GroupBox {
+                if activeMembers.isEmpty {
+                    Text("No active members.")
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(6)
+                } else {
+                    VStack(spacing: 6) {
+                        ForEach(activeMembers) { member in
+                            HStack {
+                                Toggle(isOn: Binding(
+                                    get: { meeting.tableTopicsSpeakers.contains { $0.persistentModelID == member.persistentModelID } },
+                                    set: { _ in toggleTableTopics(member) }
+                                )) {
+                                    Text(member.name)
+                                }
+                                .toggleStyle(.checkbox)
+                                Spacer()
+                            }
+                        }
+                    }
+                    .padding(6)
+                }
+            }
+        }
+    }
+
     private var attendanceCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -509,6 +549,19 @@ struct MeetingDetailView: View {
             updated.append(member)
         }
         meeting.absentees = updated
+        try? context.save()
+    }
+
+    private func toggleTableTopics(_ member: Member) {
+        // Reassign the whole array (reliably registers the change) and save, so
+        // it persists to the store rather than only living in memory.
+        var updated = meeting.tableTopicsSpeakers
+        if let index = updated.firstIndex(where: { $0.persistentModelID == member.persistentModelID }) {
+            updated.remove(at: index)
+        } else {
+            updated.append(member)
+        }
+        meeting.tableTopicsSpeakers = updated
         try? context.save()
     }
 }

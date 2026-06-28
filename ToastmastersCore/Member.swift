@@ -19,6 +19,10 @@ final class Member {
     /// a member can be marked absent from any number of meetings independently.
     var absentMeetings: [Meeting] = []
 
+    /// Inverse of `Meeting.tableTopicsSpeakers` — meetings where this member
+    /// spoke during Table Topics.
+    var tableTopicsMeetings: [Meeting] = []
+
     init(name: String, isActive: Bool = true, notes: String = "", joinedDate: Date = Date()) {
         self.name = name
         self.isActive = isActive

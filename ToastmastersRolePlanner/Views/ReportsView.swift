@@ -106,6 +106,7 @@ struct ReportTable: View {
                             headerCell(name, width: roleColumnWidth, alignment: .center)
                         }
                         headerCell("Total", width: totalColumnWidth, alignment: .center)
+                        headerCell("TT speaker", width: roleColumnWidth, alignment: .center)
                         headerCell("No role", width: roleColumnWidth, alignment: .center)
                         headerCell("Absent", width: roleColumnWidth, alignment: .center)
                     }
@@ -117,6 +118,7 @@ struct ReportTable: View {
                                 bodyCell(count == 0 ? "" : "\(count)", width: roleColumnWidth, alignment: .center, shaded: rowIndex.isMultiple(of: 2))
                             }
                             bodyCell("\(row.total)", width: totalColumnWidth, alignment: .center, shaded: rowIndex.isMultiple(of: 2), bold: true)
+                            bodyCell(row.ttSpeaker == 0 ? "" : "\(row.ttSpeaker)", width: roleColumnWidth, alignment: .center, shaded: rowIndex.isMultiple(of: 2))
                             bodyCell(row.noRole == 0 ? "" : "\(row.noRole)", width: roleColumnWidth, alignment: .center, shaded: rowIndex.isMultiple(of: 2))
                             bodyCell(row.absent == 0 ? "" : "\(row.absent)", width: roleColumnWidth, alignment: .center, shaded: rowIndex.isMultiple(of: 2))
                         }
@@ -128,6 +130,7 @@ struct ReportTable: View {
                             headerCell(total == 0 ? "" : "\(total)", width: roleColumnWidth, alignment: .center)
                         }
                         headerCell("\(report.grandTotal)", width: totalColumnWidth, alignment: .center)
+                        headerCell(report.ttSpeakerTotal == 0 ? "" : "\(report.ttSpeakerTotal)", width: roleColumnWidth, alignment: .center)
                         headerCell(report.noRoleTotal == 0 ? "" : "\(report.noRoleTotal)", width: roleColumnWidth, alignment: .center)
                         headerCell(report.absentTotal == 0 ? "" : "\(report.absentTotal)", width: roleColumnWidth, alignment: .center)
                     }
@@ -175,7 +178,7 @@ enum ReportPDF {
         let width = memberColumnWidth
             + CGFloat(report.roleNames.count) * roleColumnWidth
             + totalColumnWidth
-            + roleColumnWidth * 2   // No role + Absent columns
+            + roleColumnWidth * 3   // TT speaker + No role + Absent columns
             + tablePadding * 2
 
         let content = ReportTable(report: report)

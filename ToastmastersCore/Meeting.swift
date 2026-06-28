@@ -19,6 +19,11 @@ final class Meeting {
     @Relationship(inverse: \Member.absentMeetings)
     var absentees: [Member] = []
 
+    /// Members who spoke during Table Topics at this meeting. Tracked as a simple
+    /// ticklist (independent of roles). Many-to-many via the inverse on `Member`.
+    @Relationship(inverse: \Member.tableTopicsMeetings)
+    var tableTopicsSpeakers: [Member] = []
+
     init(date: Date = Date(), theme: String = "", templateName: String = "") {
         self.date = date
         self.theme = theme

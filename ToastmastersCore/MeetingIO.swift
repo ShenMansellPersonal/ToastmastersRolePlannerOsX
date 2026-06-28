@@ -17,6 +17,9 @@ enum MeetingIO {
         var templateName: String
         var assignments: [AssignmentDTO]
         var absentees: [String]
+        /// Optional for backward compatibility with files exported before the
+        /// Table Topics ticklist existed.
+        var tableTopicsSpeakers: [String]?
     }
 
     struct AssignmentDTO: Codable {
@@ -66,7 +69,8 @@ enum MeetingIO {
                         red: assignment.overrideRed
                     )
                 },
-                absentees: meeting.absentees.map(\.name)
+                absentees: meeting.absentees.map(\.name),
+                tableTopicsSpeakers: meeting.tableTopicsSpeakers.map(\.name)
             )
         }
         return try encoder().encode(File(meetings: dtos))
@@ -140,6 +144,7 @@ enum MeetingIO {
                 return assignment
             }
             meeting.absentees = dto.absentees.compactMap { member(named: $0) }
+            meeting.tableTopicsSpeakers = (dto.tableTopicsSpeakers ?? []).compactMap { member(named: $0) }
             touched.append(meeting)
         }
         return ImportResult(inserted: inserted, updated: updated, meetings: touched)
