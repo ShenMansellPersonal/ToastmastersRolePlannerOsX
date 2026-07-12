@@ -12,6 +12,9 @@ struct RoleReport {
         var ttSpeaker: Int  // times ticked as a Table Topics speaker
         var noRole: Int     // meetings attended (not absent) with no role
         var absent: Int     // meetings marked absent
+        /// Meetings in range (from the member's join date) they weren't absent
+        /// from — the denominator for the participation-rate page.
+        var presentMeetings: Int
     }
 
     var roleNames: [String]
@@ -21,6 +24,7 @@ struct RoleReport {
     var ttSpeakerTotal: Int
     var noRoleTotal: Int
     var absentTotal: Int
+    var presentMeetingsTotal: Int
     var start: Date
     var end: Date
 
@@ -61,12 +65,14 @@ struct RoleReport {
         var ttSpeaker: [PersistentIdentifier: Int] = [:]
         var noRole: [PersistentIdentifier: Int] = [:]
         var absent: [PersistentIdentifier: Int] = [:]
+        var present: [PersistentIdentifier: Int] = [:]
         var joinedDay: [PersistentIdentifier: Date] = [:]
         for member in activeMembers {
             counts[member.persistentModelID] = Array(repeating: 0, count: columnNames.count)
             ttSpeaker[member.persistentModelID] = 0
             noRole[member.persistentModelID] = 0
             absent[member.persistentModelID] = 0
+            present[member.persistentModelID] = 0
             joinedDay[member.persistentModelID] = calendar.startOfDay(for: member.joinedDate)
         }
 
@@ -102,8 +108,9 @@ struct RoleReport {
                 if let joined = joinedDay[id], day < joined { continue }
                 if absentIDs.contains(id) {
                     absent[id]! += 1
-                } else if !assignedIDs.contains(id) {
-                    noRole[id]! += 1
+                } else {
+                    present[id]! += 1   // wasn't absent → present for the rate denominator
+                    if !assignedIDs.contains(id) { noRole[id]! += 1 }
                 }
             }
         }
@@ -113,6 +120,7 @@ struct RoleReport {
         var ttSpeakerTotal = 0
         var noRoleTotal = 0
         var absentTotal = 0
+        var presentTotal = 0
         for member in activeMembers {
             let id = member.persistentModelID
             let memberCounts = counts[id] ?? Array(repeating: 0, count: columnNames.count)
@@ -120,16 +128,19 @@ struct RoleReport {
             let memberTT = ttSpeaker[id] ?? 0
             let memberNoRole = noRole[id] ?? 0
             let memberAbsent = absent[id] ?? 0
+            let memberPresent = present[id] ?? 0
             ttSpeakerTotal += memberTT
             noRoleTotal += memberNoRole
             absentTotal += memberAbsent
+            presentTotal += memberPresent
             rows.append(Row(
                 memberName: member.name,
                 counts: memberCounts,
                 total: memberCounts.reduce(0, +),
                 ttSpeaker: memberTT,
                 noRole: memberNoRole,
-                absent: memberAbsent
+                absent: memberAbsent,
+                presentMeetings: memberPresent
             ))
         }
 
@@ -141,6 +152,7 @@ struct RoleReport {
             ttSpeakerTotal: ttSpeakerTotal,
             noRoleTotal: noRoleTotal,
             absentTotal: absentTotal,
+            presentMeetingsTotal: presentTotal,
             start: lo,
             end: hi
         )

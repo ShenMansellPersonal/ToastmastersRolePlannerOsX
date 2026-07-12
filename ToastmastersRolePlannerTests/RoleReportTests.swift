@@ -165,6 +165,34 @@ final class RoleReportTests: XCTestCase {
         XCTAssertEqual(report.absentTotal, 1)
     }
 
+    /// Reproduces the reported bug: an absent member must never be counted as
+    /// "no role", even in a meeting that also has Table Topics speakers ticked
+    /// (a second Meeting→Member relationship that could confuse the absentees).
+    func testAbsentNotCountedAsNoRoleWithTableTopics() throws {
+        let container = try makeContainer()
+        let context = ModelContext(container)
+        let toastmaster = addRole(context, key: "toastmaster", name: "Toastmaster", order: 0)
+        let alex = addMember(context, "Alex", joined: day(2025, 1, 1))
+        let bryn = addMember(context, "Bryn", joined: day(2025, 1, 1))
+
+        // Bryn is absent; Alex is toastmaster and is ticked as a TT speaker.
+        let meeting = addMeeting(context, on: day(2025, 3, 1),
+                                 assignments: [("toastmaster", alex)], absentees: [bryn])
+        meeting.tableTopicsSpeakers = [alex]
+
+        let report = RoleReport.build(
+            members: [alex, bryn], roles: [toastmaster],
+            meetings: try fetchMeetings(context),
+            start: day(2025, 1, 1), end: day(2025, 12, 31)
+        )
+
+        let brynRow = row(report, "Bryn")
+        XCTAssertEqual(brynRow.absent, 1)
+        XCTAssertEqual(brynRow.noRole, 0)              // absent ⇒ not "no role"
+        XCTAssertEqual(brynRow.presentMeetings, 0)     // absent ⇒ not present
+        XCTAssertEqual(row(report, "Alex").ttSpeaker, 1)
+    }
+
     func testNoRoleRespectsJoinedDate() throws {
         let container = try makeContainer()
         let context = ModelContext(container)

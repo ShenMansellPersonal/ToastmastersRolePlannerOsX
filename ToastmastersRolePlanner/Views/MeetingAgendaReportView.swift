@@ -10,9 +10,12 @@ private let agendaPageWidth: CGFloat = 595
 private let agendaPageHeight: CGFloat = 842
 private let agendaMargin: CGFloat = 36
 
-private let colStart: CGFloat = 55
+// Column widths sum to the full content width (595 - 2*36 = 523) so the rows
+// span the same width as the theme/quote fields above them. The name (Member)
+// column takes the extra space.
+private let colStart: CGFloat = 50
 private let colRole: CGFloat = 170
-private let colUser: CGFloat = 110
+private let colUser: CGFloat = 165
 private let colTime: CGFloat = 46
 
 let oaklandsCommittee: [(role: String, name: String)] = [
@@ -142,6 +145,7 @@ struct MeetingAgendaPage: View {
                     VStack(alignment: .leading, spacing: 4) {
                         labelledField("Theme :", agenda.theme)
                         labelledField("Quote :", "")
+                        labelledField("Author:", "")
                     }
                 }
                 Spacer()
@@ -264,7 +268,7 @@ struct MeetingAgendaPage: View {
     private func headerCell(_ text: String, _ width: CGFloat, _ alignment: Alignment) -> some View {
         Text(text)
             .font(.caption2.bold())
-            .padding(.horizontal, 5)
+            .padding(.horizontal, 3)
             .padding(.vertical, 3)
             .frame(width: width, alignment: alignment)
     }
@@ -275,7 +279,7 @@ struct MeetingAgendaPage: View {
     private func cell(_ text: String, _ width: CGFloat, _ alignment: Alignment) -> some View {
         Text(text)
             .font(.system(size: 11))
-            .padding(.horizontal, 5)
+            .padding(.horizontal, 3)
             .padding(.vertical, 3)
             .frame(width: width, alignment: alignment)
             .frame(maxHeight: .infinity)
@@ -383,7 +387,7 @@ enum MeetingAgendaPDF {
         var fields: [AgendaField] = []
 
         let left = agendaMargin
-        let pad: CGFloat = 5
+        let pad: CGFloat = 3
         let tableWidth = colStart + colRole + colUser + colTime * 3
         let body = NSFont.systemFont(ofSize: 11)
         let label = NSFont.systemFont(ofSize: 12, weight: .semibold)
@@ -446,7 +450,12 @@ enum MeetingAgendaPDF {
             fields.append(AgendaField(rect: CGRect(x: xStart + pad - 1, y: y, width: colStart - pad, height: rowH), value: clock(row.startSeconds), name: "start-\(id)-\(i)"))
             draws.append(.text(row.roleLabel, CGRect(x: xRole + pad, y: y + 2, width: colRole - pad, height: 13), body, .left, .black, wrap: false))
             // Member and the three time signals are all fillable fields.
-            fields.append(AgendaField(rect: CGRect(x: xMember + 1, y: y, width: colUser - 2, height: rowH), value: row.user, name: "member-\(id)-\(i)"))
+            // A trailing space is appended to the name: without it Preview's
+            // generated appearance stream clips the last word of names that
+            // nearly fill the field, hiding the person's second name until a
+            // space is typed manually.
+            let memberValue = row.user.isEmpty ? "" : row.user + " "
+            fields.append(AgendaField(rect: CGRect(x: xMember + 1, y: y, width: colUser - 2, height: rowH), value: memberValue, name: "member-\(id)-\(i)"))
             fields.append(AgendaField(rect: CGRect(x: xGreen, y: y, width: colTime, height: rowH), value: row.green.asMMSS, name: "green-\(id)-\(i)", alignment: .center))
             fields.append(AgendaField(rect: CGRect(x: xYellow, y: y, width: colTime, height: rowH), value: row.yellow.asMMSS, name: "yellow-\(id)-\(i)", alignment: .center))
             fields.append(AgendaField(rect: CGRect(x: xRed, y: y, width: colTime, height: rowH), value: row.red.asMMSS, name: "red-\(id)-\(i)", alignment: .center))

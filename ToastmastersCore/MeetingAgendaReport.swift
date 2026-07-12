@@ -56,13 +56,17 @@ enum MeetingAgendaReport {
                 // Skip unassigned manned roles entirely — no row and no time.
                 if user.isEmpty && !isUnmanned { continue }
 
-                let red = role?.red ?? 0
+                // Per-meeting edited times take precedence over the role defaults;
+                // the clock below advances by `red`, so overrides shift start times too.
+                let green = assignment.overrideGreen ?? role?.green ?? 0
+                let yellow = assignment.overrideYellow ?? role?.yellow ?? 0
+                let red = assignment.overrideRed ?? role?.red ?? 0
                 rows.append(MeetingAgenda.Row(
                     startSeconds: clock,
                     roleLabel: assignment.displayLabel(role),
                     user: user,
-                    green: role?.green ?? 0,
-                    yellow: role?.yellow ?? 0,
+                    green: green,
+                    yellow: yellow,
                     red: red,
                     isBreak: role?.key == "breakTime"
                 ))
