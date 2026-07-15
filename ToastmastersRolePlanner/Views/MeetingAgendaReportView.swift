@@ -144,8 +144,11 @@ struct MeetingAgendaPage: View {
                     // Editable Theme / Quote fields.
                     VStack(alignment: .leading, spacing: 4) {
                         labelledField("Theme :", agenda.theme)
-                        labelledField("Quote :", "")
-                        labelledField("Author:", "")
+                        labelledField("Quote :", agenda.quote)
+                        Text(agenda.quoteAuthor.isEmpty ? "Quote by : " : "Quote by : \(agenda.quoteAuthor)")
+                            .font(.system(size: 12).italic())
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                            .padding(.trailing, 80)
                     }
                 }
                 Spacer()
@@ -184,16 +187,18 @@ struct MeetingAgendaPage: View {
                 }
             }
 
-            if !agenda.noRole.isEmpty {
+            HStack(alignment: .top, spacing: 12) {
                 Text("No role: \(agenda.noRole.joined(separator: ", "))")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
-            }
-            if !agenda.apologies.isEmpty {
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Divider()
                 Text("Apologies: \(agenda.apologies.joined(separator: ", "))")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .fixedSize(horizontal: false, vertical: true)
 
             Spacer(minLength: 8)
 
@@ -302,6 +307,8 @@ private struct AgendaField {
     var name: String
     var alignment: NSTextAlignment = .left
     var fontSize: CGFloat = 11
+    var isMultiline: Bool = false
+    var isItalic: Bool = false
 }
 
 @MainActor
@@ -343,10 +350,19 @@ enum MeetingAgendaPDF {
                 )
                 let annotation = PDFAnnotation(bounds: bounds, forType: .widget, withProperties: nil)
                 annotation.widgetFieldType = .text
+                annotation.isMultiline = field.isMultiline
                 annotation.fieldName = field.name
                 annotation.widgetStringValue = field.value
                 annotation.alignment = field.alignment
-                annotation.font = NSFont.systemFont(ofSize: field.fontSize)
+                // Use a standard PDF oblique face for italic fields — PDFKit's
+                // form-field appearance stream renders it reliably, whereas an
+                // NSFontManager-converted system font falls back to upright.
+                if field.isItalic {
+                    annotation.font = NSFont(name: "Helvetica-Oblique", size: field.fontSize)
+                        ?? NSFont.systemFont(ofSize: field.fontSize)
+                } else {
+                    annotation.font = NSFont.systemFont(ofSize: field.fontSize)
+                }
                 annotation.fontColor = .black
                 annotation.backgroundColor = .clear
                 let border = PDFBorder()
@@ -414,14 +430,23 @@ enum MeetingAgendaPDF {
         draws.append(.text("Oaklands Toastmasters - \(agenda.date.formatted(date: .complete, time: .omitted))",
                            CGRect(x: left, y: y, width: tableWidth - logoSize - 10, height: 22),
                            NSFont.boldSystemFont(ofSize: 15), .left, .black, wrap: false))
-        y += 30
+        y += 28
 
         draws.append(.text("Theme :", CGRect(x: left, y: y, width: 56, height: 16), label, .left, .black, wrap: false))
         fields.append(AgendaField(rect: CGRect(x: left + 58, y: y, width: topFieldWidth, height: 16), value: agenda.theme, name: "theme-\(id)"))
-        y += 22
+        y += 18
+        // Quote spans two lines: the quote itself, then a right-justified
+        // attribution line beneath it. Gaps are tight so the extra line fits
+        // without pushing the table header down.
         draws.append(.text("Quote :", CGRect(x: left, y: y, width: 56, height: 16), label, .left, .black, wrap: false))
-        fields.append(AgendaField(rect: CGRect(x: left + 58, y: y, width: topFieldWidth, height: 16), value: "", name: "quote-\(id)"))
-        y += 26
+        fields.append(AgendaField(rect: CGRect(x: left + 58, y: y, width: topFieldWidth, height: 16), value: agenda.quote, name: "quote-\(id)"))
+        y += 17
+        // Narrower than the quote line so its right edge sits toward the
+        // centre of the page rather than out by the logo. Prefilled from the
+        // meeting's author when set, otherwise left as an editable prefix.
+        let attribution = agenda.quoteAuthor.isEmpty ? "Quote by : " : "Quote by : \(agenda.quoteAuthor)"
+        fields.append(AgendaField(rect: CGRect(x: left + 58, y: y, width: topFieldWidth - 80, height: 16), value: attribution, name: "quote-attrib-\(id)", alignment: .right, isItalic: true))
+        y += 19
 
         // Header row.
         let headerFont = NSFont.boldSystemFont(ofSize: 9)
@@ -470,18 +495,36 @@ enum MeetingAgendaPDF {
         y += 8
         let smallGray = NSColor.darkGray
         let noteFont = NSFont.systemFont(ofSize: 10)
-        // Label stays static; the names are editable fields (so they can be
-        // corrected or filled in even when empty).
-        draws.append(.text("No role:", CGRect(x: left, y: y, width: 48, height: 14), noteFont, .left, smallGray, wrap: false))
-        fields.append(AgendaField(rect: CGRect(x: left + 50, y: y - 1, width: tableWidth - 50, height: 14), value: agenda.noRole.joined(separator: ", "), name: "norole-\(id)", fontSize: 10))
-        y += 16
-        draws.append(.text("Apologies:", CGRect(x: left, y: y, width: 60, height: 14), noteFont, .left, smallGray, wrap: false))
-        fields.append(AgendaField(rect: CGRect(x: left + 62, y: y - 1, width: tableWidth - 62, height: 14), value: agenda.apologies.joined(separator: ", "), name: "apologies-\(id)", fontSize: 10))
-        y += 16
+        // "No role" and "Apologies" sit side by side with a vertical divider
+        // between them. The labels always print (even when the lists are empty);
+        // the names are editable multi-line fields that fill the space down to
+        // the committee section, so long lists have room to wrap.
+        let halfWidth = tableWidth / 2
+        let dividerX = left + halfWidth
+        let notesTop = y
 
-        // Committee footer, anchored near the bottom.
-        let footerHeight: CGFloat = 116
-        var fy = max(y + 12, agendaPageHeight - agendaMargin - footerHeight)
+        // The committee footer is pulled toward the bottom on a short agenda and
+        // flows just below the notes on a long one. footerHeight is the block's
+        // real height (divider + title + 4 rows + mission) plus a small gap so
+        // the bottom-anchored case never runs off the page.
+        let footerHeight: CGFloat = 128
+        var fy = max(notesTop + 28, agendaPageHeight - agendaMargin - footerHeight)
+
+        // Notes fields fill from just below the labels down to a small gap above
+        // the committee divider.
+        let noteFieldTop = notesTop - 1
+        let noteFieldH = max(14, fy - 8 - noteFieldTop)
+        // Left column: No role
+        draws.append(.text("No role:", CGRect(x: left, y: notesTop, width: 48, height: 14), noteFont, .left, smallGray, wrap: false))
+        fields.append(AgendaField(rect: CGRect(x: left + 50, y: noteFieldTop, width: halfWidth - 50 - 12, height: noteFieldH), value: agenda.noRole.joined(separator: "\n"), name: "norole-\(id)", fontSize: 10, isMultiline: true))
+        // Vertical divider spanning the notes area.
+        draws.append(.fill(CGRect(x: dividerX, y: noteFieldTop, width: 0.5, height: noteFieldH), breakColor))
+        // Right column: Apologies
+        let apologiesX = dividerX + 12
+        draws.append(.text("Apologies:", CGRect(x: apologiesX, y: notesTop, width: 60, height: 14), noteFont, .left, smallGray, wrap: false))
+        fields.append(AgendaField(rect: CGRect(x: apologiesX + 62, y: noteFieldTop, width: left + tableWidth - (apologiesX + 62), height: noteFieldH), value: agenda.apologies.joined(separator: "\n"), name: "apologies-\(id)", fontSize: 10, isMultiline: true))
+
+        // Committee footer.
         draws.append(.fill(CGRect(x: left, y: fy, width: tableWidth, height: 0.5), breakColor))
         fy += 6
         draws.append(.text("Oaklands Club Committee", CGRect(x: left, y: fy, width: 300, height: 14), NSFont.boldSystemFont(ofSize: 10), .left, .black, wrap: false))

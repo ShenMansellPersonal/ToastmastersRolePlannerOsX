@@ -7,6 +7,8 @@ struct MeetingAgenda: Identifiable {
     let id = UUID()
     var date: Date
     var theme: String
+    var quote: String
+    var quoteAuthor: String
     var rows: [Row]
     var noRole: [String]       // active members with no role (and not absent)
     var apologies: [String]    // members marked absent
@@ -89,7 +91,7 @@ enum MeetingAgendaReport {
                 .map(\.name)
             let apologies = meeting.absentees.map(\.name).sorted()
 
-            return MeetingAgenda(date: meeting.date, theme: meeting.theme, rows: rows, noRole: noRole, apologies: apologies)
+            return MeetingAgenda(date: meeting.date, theme: meeting.theme, quote: meeting.quote, quoteAuthor: meeting.quoteAuthor, rows: rows, noRole: noRole, apologies: apologies)
         }
     }
 }

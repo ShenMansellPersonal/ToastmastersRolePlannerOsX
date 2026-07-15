@@ -20,6 +20,10 @@ enum MeetingIO {
         /// Optional for backward compatibility with files exported before the
         /// Table Topics ticklist existed.
         var tableTopicsSpeakers: [String]?
+        /// Optional for backward compatibility with files exported before the
+        /// quote-of-the-day fields existed.
+        var quote: String?
+        var quoteAuthor: String?
     }
 
     struct AssignmentDTO: Codable {
@@ -70,7 +74,9 @@ enum MeetingIO {
                     )
                 },
                 absentees: meeting.absentees.map(\.name),
-                tableTopicsSpeakers: meeting.tableTopicsSpeakers.map(\.name)
+                tableTopicsSpeakers: meeting.tableTopicsSpeakers.map(\.name),
+                quote: meeting.quote,
+                quoteAuthor: meeting.quoteAuthor
             )
         }
         return try encoder().encode(File(meetings: dtos))
@@ -125,6 +131,8 @@ enum MeetingIO {
             }
 
             meeting.templateName = dto.templateName
+            meeting.quote = dto.quote ?? ""
+            meeting.quoteAuthor = dto.quoteAuthor ?? ""
             // Replace any existing assignments.
             for assignment in meeting.assignments { context.delete(assignment) }
             meeting.assignments = dto.assignments.map { item in

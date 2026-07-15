@@ -284,6 +284,8 @@ struct MeetingDetailView: View {
             VStack(alignment: .leading, spacing: 12) {
                 DatePicker("Date", selection: $meeting.date, displayedComponents: [.date])
                 TextField("Theme", text: $meeting.theme)
+                TextField("Quote", text: $meeting.quote)
+                TextField("Quote author", text: $meeting.quoteAuthor)
                 LabeledContent("Template", value: meeting.templateName.isEmpty ? "—" : meeting.templateName)
             }
             .frame(maxWidth: .infinity, alignment: .leading)

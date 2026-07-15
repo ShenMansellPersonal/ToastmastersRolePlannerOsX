@@ -8,6 +8,9 @@ import SwiftData
 final class Meeting {
     var date: Date = Date()
     var theme: String = ""
+    /// Optional quote of the day and its author, shown on the agenda.
+    var quote: String = ""
+    var quoteAuthor: String = ""
     /// Name of the template this meeting was created from (for display/history).
     var templateName: String = ""
 
@@ -24,9 +27,11 @@ final class Meeting {
     @Relationship(inverse: \Member.tableTopicsMeetings)
     var tableTopicsSpeakers: [Member] = []
 
-    init(date: Date = Date(), theme: String = "", templateName: String = "") {
+    init(date: Date = Date(), theme: String = "", quote: String = "", quoteAuthor: String = "", templateName: String = "") {
         self.date = date
         self.theme = theme
+        self.quote = quote
+        self.quoteAuthor = quoteAuthor
         self.templateName = templateName
     }
 
