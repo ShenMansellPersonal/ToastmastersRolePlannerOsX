@@ -25,6 +25,7 @@ struct ContentView: View {
     enum ReportKind: String, CaseIterable, Identifiable {
         case roleParticipation = "Role Participation"
         case memberDetail = "Member Detail"
+        case tableTopics = "Table Topics"
         case meetingAgendas = "Meeting Agendas"
 
         var id: String { rawValue }
@@ -33,6 +34,7 @@ struct ContentView: View {
             switch self {
             case .roleParticipation: "chart.bar.doc.horizontal"
             case .memberDetail: "person.badge.clock"
+            case .tableTopics: "bubble.left.and.bubble.right"
             case .meetingAgendas: "calendar.day.timeline.left"
             }
         }
@@ -115,6 +117,7 @@ struct ContentView: View {
             switch selectedReport ?? .roleParticipation {
             case .roleParticipation: RoleParticipationReportView()
             case .memberDetail: MemberRoleDetailReportView()
+            case .tableTopics: TableTopicsReportView()
             case .meetingAgendas: MeetingAgendaReportView()
             }
         }

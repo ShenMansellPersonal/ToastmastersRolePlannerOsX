@@ -190,7 +190,9 @@ final class RoleReportTests: XCTestCase {
         XCTAssertEqual(brynRow.absent, 1)
         XCTAssertEqual(brynRow.noRole, 0)              // absent ⇒ not "no role"
         XCTAssertEqual(brynRow.presentMeetings, 0)     // absent ⇒ not present
-        XCTAssertEqual(row(report, "Alex").ttSpeaker, 1)
+        // Alex spoke at Table Topics and was toastmaster; the ticklist must not
+        // affect the absentee/no-role accounting above.
+        XCTAssertEqual(row(report, "Alex").noRole, 0)
     }
 
     func testNoRoleRespectsJoinedDate() throws {

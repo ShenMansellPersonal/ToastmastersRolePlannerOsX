@@ -157,7 +157,6 @@ struct ReportTable: View {
                             headerCell(name, width: roleColumnWidth, alignment: .center)
                         }
                         headerCell("Total", width: totalColumnWidth, alignment: .center)
-                        headerCell("TT speaker", width: roleColumnWidth, alignment: .center)
                         headerCell("No role", width: roleColumnWidth, alignment: .center)
                         headerCell("Absent", width: roleColumnWidth, alignment: .center)
                     }
@@ -170,7 +169,6 @@ struct ReportTable: View {
                                 bodyCell(value(count, present: row.presentMeetings), width: roleColumnWidth, alignment: .center, shaded: shaded)
                             }
                             bodyCell(value(row.total, present: row.presentMeetings, keepZero: true), width: totalColumnWidth, alignment: .center, shaded: shaded, bold: true)
-                            bodyCell(value(row.ttSpeaker, present: row.presentMeetings), width: roleColumnWidth, alignment: .center, shaded: shaded)
                             bodyCell(value(row.noRole, present: row.presentMeetings), width: roleColumnWidth, alignment: .center, shaded: shaded)
                             bodyCell(value(row.absent, present: row.presentMeetings), width: roleColumnWidth, alignment: .center, shaded: shaded)
                         }
@@ -185,7 +183,6 @@ struct ReportTable: View {
                                 headerCell(value(total, present: report.presentMeetingsTotal), width: roleColumnWidth, alignment: .center)
                             }
                             headerCell(value(report.grandTotal, present: report.presentMeetingsTotal, keepZero: true), width: totalColumnWidth, alignment: .center)
-                            headerCell(value(report.ttSpeakerTotal, present: report.presentMeetingsTotal), width: roleColumnWidth, alignment: .center)
                             headerCell(value(report.noRoleTotal, present: report.presentMeetingsTotal), width: roleColumnWidth, alignment: .center)
                             headerCell(value(report.absentTotal, present: report.presentMeetingsTotal), width: roleColumnWidth, alignment: .center)
                         }
@@ -248,7 +245,7 @@ enum ReportPDF {
         let width = memberColumnWidth
             + CGFloat(report.roleNames.count) * roleColumnWidth
             + totalColumnWidth
-            + roleColumnWidth * 3   // TT speaker + No role + Absent columns
+            + roleColumnWidth * 2   // No role + Absent columns
             + tablePadding * 2
 
         // Page 1: counts. Page 2: participation rate (%). Same rows and columns.

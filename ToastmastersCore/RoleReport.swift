@@ -9,7 +9,6 @@ struct RoleReport {
         var memberName: String
         var counts: [Int]   // one per role, aligned with `roleNames`
         var total: Int      // sum of role counts
-        var ttSpeaker: Int  // times ticked as a Table Topics speaker
         var noRole: Int     // meetings attended (not absent) with no role
         var absent: Int     // meetings marked absent
         /// Meetings in range (from the member's join date) they weren't absent
@@ -21,7 +20,6 @@ struct RoleReport {
     var rows: [Row]
     var columnTotals: [Int]
     var grandTotal: Int
-    var ttSpeakerTotal: Int
     var noRoleTotal: Int
     var absentTotal: Int
     var presentMeetingsTotal: Int
@@ -62,14 +60,12 @@ struct RoleReport {
 
         let activeIDs = Set(activeMembers.map(\.persistentModelID))
         var counts: [PersistentIdentifier: [Int]] = [:]
-        var ttSpeaker: [PersistentIdentifier: Int] = [:]
         var noRole: [PersistentIdentifier: Int] = [:]
         var absent: [PersistentIdentifier: Int] = [:]
         var present: [PersistentIdentifier: Int] = [:]
         var joinedDay: [PersistentIdentifier: Date] = [:]
         for member in activeMembers {
             counts[member.persistentModelID] = Array(repeating: 0, count: columnNames.count)
-            ttSpeaker[member.persistentModelID] = 0
             noRole[member.persistentModelID] = 0
             absent[member.persistentModelID] = 0
             present[member.persistentModelID] = 0
@@ -97,12 +93,6 @@ struct RoleReport {
                 }
             }
 
-            // Table Topics speakers are tracked per meeting as a ticklist; count
-            // each active member once per meeting they spoke in.
-            for id in meeting.tableTopicsSpeakers.map(\.persistentModelID) where ttSpeaker[id] != nil {
-                ttSpeaker[id]! += 1
-            }
-
             for id in activeIDs {
                 // Only count attendance-derived stats from the member's join date.
                 if let joined = joinedDay[id], day < joined { continue }
@@ -117,7 +107,6 @@ struct RoleReport {
 
         var rows: [Row] = []
         var columnTotals = Array(repeating: 0, count: columnNames.count)
-        var ttSpeakerTotal = 0
         var noRoleTotal = 0
         var absentTotal = 0
         var presentTotal = 0
@@ -125,11 +114,9 @@ struct RoleReport {
             let id = member.persistentModelID
             let memberCounts = counts[id] ?? Array(repeating: 0, count: columnNames.count)
             for index in memberCounts.indices { columnTotals[index] += memberCounts[index] }
-            let memberTT = ttSpeaker[id] ?? 0
             let memberNoRole = noRole[id] ?? 0
             let memberAbsent = absent[id] ?? 0
             let memberPresent = present[id] ?? 0
-            ttSpeakerTotal += memberTT
             noRoleTotal += memberNoRole
             absentTotal += memberAbsent
             presentTotal += memberPresent
@@ -137,7 +124,6 @@ struct RoleReport {
                 memberName: member.name,
                 counts: memberCounts,
                 total: memberCounts.reduce(0, +),
-                ttSpeaker: memberTT,
                 noRole: memberNoRole,
                 absent: memberAbsent,
                 presentMeetings: memberPresent
@@ -149,7 +135,6 @@ struct RoleReport {
             rows: rows,
             columnTotals: columnTotals,
             grandTotal: columnTotals.reduce(0, +),
-            ttSpeakerTotal: ttSpeakerTotal,
             noRoleTotal: noRoleTotal,
             absentTotal: absentTotal,
             presentMeetingsTotal: presentTotal,
